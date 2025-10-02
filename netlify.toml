@@ -1,0 +1,36 @@
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+  command = "echo 'No build command'"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[[redirects]]
+  from = "/"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/verificare"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/vot"
+  to = "/vot.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200
+
+# API routes
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[functions]
+  node_bundler = "esbuild"

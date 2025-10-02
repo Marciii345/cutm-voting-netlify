@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Votare - Consiliul Elevilor CUTM</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Stilurile complete din versiunea anterioară a vot.html */
+        /* Le păstrăm identice pentru consistență */
+        :root {
+            --primary: #203535;
+            --secondary: #0088A3;
+            --accent: #C6E7F9;
+            --light: #f5f5f5;
+            --dark: #212121;
+            --text: #333;
+            --text-light: #fff;
+            --success: #2ecc71;
+            --error: #e74c3c;
+            --warning: #f39c12;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 3rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+
+        .school-name {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .election-title {
+            font-size: 1.5rem;
+            color: var(--secondary);
+            margin-bottom: 15px;
+        }
+
+        .user-info {
+            background: var(--accent);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .user-info h3 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .voting-section {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            color: var(--primary);
+            margin-bottom: 25px;
+            text-align: center;
+            font-size: 1.8rem;
+            border-bottom: 3px solid var(--secondary);
+            padding-bottom: 10px;
+        }
+
+        .position-title {
+            color: var(--secondary);
+            margin: 30px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e1e5e9;
+            font-size: 1.4rem;
+        }
+
+        .candidates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .candidate-card {
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+        }
+
+        .candidate-card:hover {
+            border-color: var(--secondary);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .candidate-card.selected {
+            border-color: var(--success);
+            background: rgba(46, 204, 113, 0.05);
+            box-shadow: 0 0 20px rgba(46, 204, 113, 0.3);
+        }
+
+        .candidate-image {
+            width: 80px;
+            height: 80px;
+            background: var(--secondary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            margin: 0 auto 15px;
+        }
+
+        .candidate-info h3 {
+            color: var(--primary);
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .candidate-role {
+            color: var(--secondary);
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .candidate-description {
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            background: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 136, 163, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-success {
+            background: var(--success);
+        }
+
+        .btn-success:hover {
+            background: #27ae60;
+        }
+
+        .btn-center {
+            display: block;
+            margin: 30px auto;
+            text-align: center;
+        }
+
+        .btn-large {
+            padding: 18px 40px;
+            font-size: 1.1rem;
+        }
+
+        .message {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+            display: none;
+        }
+
+        .message.success {
+            background: rgba(46, 204, 113, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+
+        .message.error {
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid var(--error);
+            color: var(--error);
+        }
+
+        .message.info {
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid #3498db;
+            color: #3498db;
+        }
+
+        .results-section {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-top: 30px;
+            display: none;
+        }
+
+        .result-item {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid var(--secondary);
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .result-candidate {
+            margin: 15px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e1e5e9;
+        }
+
+        .result-bar {
+            height: 20px;
+            background: #e1e5e9;
+            border-radius: 10px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .result-fill {
+            height: 100%;
+            background: var(--secondary);
+            border-radius: 10px;
+            transition: width 0.5s ease-in-out;
+        }
+
+        .logout-section {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 30px;
+            display: none;
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--secondary);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+            position: relative;
+        }
+
+        .step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e1e5e9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #666;
+            position: relative;
+            z-index: 2;
+            margin: 0 20px;
+        }
+
+        .step.active {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .step.completed {
+            background: var(--success);
+            color: white;
+        }
+
+        .step-line {
+            position: absolute;
+            top: 20px;
+            left: 25%;
+            right: 25%;
+            height: 3px;
+            background: #e1e5e9;
+            z-index: 1;
+        }
+
+        .step-line.active {
+            background: var(--secondary);
+        }
+
+        .step-line.completed {
+            background: var(--success);
+        }
+
+        @media (max-width: 768px) {
+            .candidates-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .school-name {
+                font-size: 1.5rem;
+            }
+            
+            .election-title {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <i class="fas fa-vote-yea"></i>
+            </div>
+            <div class="school-name">Colegiul UTM</div>
+            <div class="election-title">Alegeri Consiliul Elevilor 2025-2026</div>
+            
+            <div class="user-info" id="userInfo">
+                <h3><i class="fas fa-user"></i> Informații utilizator</h3>
+                <p><strong>Nume:</strong> <span id="userName">Se încarcă...</span></p>
+                <p><strong>Email:</strong> <span id="userEmail">Se încarcă...</span></p>
+                <p><strong>Stare vot:</strong> <span id="voteStatus">Se verifică...</span></p>
+            </div>
+        </div>
+
+        <!-- Indicator pași -->
+        <div class="step-indicator">
+            <div class="step completed">1</div>
+            <div class="step-line completed"></div>
+            <div class="step active">2</div>
+            <div class="step-line"></div>
+            <div class="step">3</div>
+        </div>
+
+        <!-- Secțiunea de votare -->
+        <div class="voting-section" id="votingSection">
+            <h2 class="section-title">Alege-ți candidații</h2>
+            <p style="text-align: center; margin-bottom: 30px; color: #666;">
+                Selectează câte un candidat pentru fiecare funcție. Poți selecta doar un candidat per poziție.
+            </p>
+
+            <!-- Președinte -->
+            <h3 class="position-title">Președinte</h3>
+            <div class="candidates-grid">
+                <div class="candidate-card" data-position="president" data-candidate="Chiosa Alexsandra">
+                    <div class="candidate-image">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="candidate-info">
+                        <h3>Chiosa Alexsandra</h3>
+                        <div class="candidate-role">Candidat pentru Președinte</div>
+                        <p class="candidate-description">
+                            Îmi doresc să aduc schimbări pozitive în colegiu și să reprezint interesele tuturor elevilor.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="candidate-card" data-position="president" data-candidate="Margari Maria">
+                    <div class="candidate-image">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="candidate-info">
+                        <h3>Margari Maria</h3>
+                        <div class="candidate-role">Candidat pentru Președinte</div>
+                        <p class="candidate-description">
+                            Vreau să creez un mediu mai prietenos și mai activ pentru toți elevii colegiului nostru.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vicepreședinte -->
+            <h3 class="position-title">Vicepreședinte</h3>
+            <div class="candidates-grid">
+                <div class="candidate-card" data-position="vicePresident" data-candidate="Morari Marcel">
+                    <div class="candidate-image">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="candidate-info">
+                        <h3>Morari Marcel</h3>
+                        <div class="candidate-role">Candidat pentru Vicepreședinte</div>
+                        <p class="candidate-description">
+                            Doresc să sprijin activitățile consiliului și să asigur o comunicare eficientă între elevi și conducere.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="candidate-card" data-position="vicePresident" data-candidate="Ostoianu Vadim">
+                    <div class="candidate-image">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="candidate-info">
+                        <h3>Ostoianu Vadim</h3>
+                        <div class="candidate-role">Candidat pentru Vicepreședinte</div>
+                        <p class="candidate-description">
+                            Vreau să contribui la organizarea evenimentelor și să fiu vocea colegilor mei în consiliu.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ministru pe Culturi și Sărbători -->
+            <h3 class="position-title">Ministru pe Culturi și Sărbători</h3>
+            <div class="candidates-grid">
+                <div class="candidate-card" data-position="cultureMinister" data-candidate="Cotoman Alexsandra">
+                    <div class="candidate-image">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="candidate-info">
+                        <h3>Cotoman Alexsandra</h3>
+                        <div class="candidate-role">Candidat pentru Ministru pe Culturi și Sărbători</div>
+                        <p class="candidate-description">
+                            Vreau să organizez evenimente culturale memorabile și să promovez tradițiile noastre.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="candidate-card" data-position="cultureMinister" data-candidate="Braga Iulia">
+                    <div class="candidate-image">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="candidate-info">
+                        <h3>Braga Iulia</h3>
+                        <div class="candidate-role">Candidat pentru Ministru pe Culturi și Sărbători</div>
+                        <p class="candidate-description">
+                            Îmi doresc să aduc bucurie și unitate în colegiu prin organizarea de sărbători și activități culturale.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ministru pe Administrație -->
+            <h3 class="position-title">Ministru pe Administrație</h3>
+            <div class="candidates-grid">
+                <div class="candidate-card" data-position="administrationMinister" data-candidate="Leahu Iana">
+                    <div class="candidate-image">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="candidate-info">
+                        <h3>Leahu Iana</h3>
+                        <div class="candidate-role">Candidat pentru Ministru pe Administrație</div>
+                        <p class="candidate-description">
+                            Vreau să asigur o administrare eficientă a resurselor consiliului și să gestionez activitățile cu profesionalism.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="candidate-card" data-position="administrationMinister" data-candidate="Braga Beatrice">
+                    <div class="candidate-image">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="candidate-info">
+                        <h3>Braga Beatrice</h3>
+                        <div class="candidate-role">Candidat pentru Ministru pe Administrație</div>
+                        <p class="candidate-description">
+                            Îmi doresc să aduc ordine și eficiență în activitățile administrative ale consiliului.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="candidate-card" data-position="administrationMinister" data-candidate="Jecari Oleg">
+                    <div class="candidate-image">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="candidate-info">
+                        <h3>Jecari Oleg</h3>
+                        <div class="candidate-role">Candidat pentru Ministru pe Administrație</div>
+                        <p class="candidate-description">
+                            Vreau să implementez sisteme moderne de administrare care să faciliteze activitatea consiliului.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="candidate-card" data-position="administrationMinister" data-candidate="Magari Marius">
+                    <div class="candidate-image">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="candidate-info">
+                        <h3>Magari Marius</h3>
+                        <div class="candidate-role">Candidat pentru Ministru pe Administrație</div>
+                        <p class="candidate-description">
+                            Îmi doresc să gestionez resursele consiliului cu responsabilitate și transparență.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ministru pe Social Media -->
+            <h3 class="position-title">Ministru pe Social Media</h3>
+            <div class="candidates-grid">
+                <div class="candidate-card" data-position="socialMediaMinister" data-candidate="Radalina Ursu">
+                    <div class="candidate-image">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="candidate-info">
+                        <h3>Radalina Ursu</h3>
+                        <div class="candidate-role">Candidat pentru Ministru pe Social Media</div>
+                        <p class="candidate-description">
+                            Vreau să promovez activitățile consiliului pe platformele de social media și să creez conținut interesant.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="candidate-card" data-position="socialMediaMinister" data-candidate="Vadim Usatai">
+                    <div class="candidate-image">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="candidate-info">
+                        <h3>Vadim Usatai</h3>
+                        <div class="candidate-role">Candidat pentru Ministru pe Social Media</div>
+                        <p class="candidate-description">
+                            Îmi doresc să folosesc social media pentru a conecta elevii și a promova evenimentele consiliului.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="candidate-card" data-position="socialMediaMinister" data-candidate="Usru Gleb">
+                    <div class="candidate-image">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="candidate-info">
+                        <h3>Usru Gleb</h3>
+                        <div class="candidate-role">Candidat pentru Ministru pe Social Media</div>
+                        <p class="candidate-description">
+                            Vreau să creez o prezență online puternică pentru consiliu și să anunț toate activitățile în timp util.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buton trimitere vot -->
+            <div class="message" id="votingMessage"></div>
+            <button class="btn btn-success btn-large btn-center" id="submitVoteBtn" style="display: none;">
+                <i class="fas fa-paper-plane"></i> Trimite votul
+            </button>
+        </div>
+
+        <!-- Secțiunea de rezultate (după vot) -->
+        <div class="results-section" id="resultsSection">
+            <h2 class="section-title">Votul tău a fost înregistrat!</h2>
+            <div class="message success">
+                <h3><i class="fas fa-check-circle"></i> Mulțumim pentru participare!</h3>
+                <p>Votul tău a fost înregistrat cu succes în sistem.</p>
+            </div>
+
+            <div id="voteSummary">
+                <h3 style="color: var(--primary); margin: 30px 0 20px 0;">Rezumatul votului tău:</h3>
+                <!-- Vom afișa aici candidații selectați -->
+            </div>
+
+            <div class="logout-section">
+                <button class="btn" id="logoutBtn">
+                    <i class="fas fa-sign-out-alt"></i> Delogare
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p>Se procesează informațiile...</p>
+        </div>
+    </div>
+
+    <script>
+        // Variabile globale
+        let selectedCandidates = {};
+        let userData = {};
+        let userId = null;
+
+        // Elemente DOM
+        const userInfo = document.getElementById('userInfo');
+        const userName = document.getElementById('userName');
+        const userEmail = document.getElementById('userEmail');
+        const voteStatus = document.getElementById('voteStatus');
+        const votingSection = document.getElementById('votingSection');
+        const resultsSection = document.getElementById('resultsSection');
+        const candidateCards = document.querySelectorAll('.candidate-card');
+        const submitVoteBtn = document.getElementById('submitVoteBtn');
+        const votingMessage = document.getElementById('votingMessage');
+        const voteSummary = document.getElementById('voteSummary');
+        const loadingDiv = document.getElementById('loading');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        // Verifică starea la încărcarea paginii
+        document.addEventListener('DOMContentLoaded', checkUserStatus);
+
+        // Evenimente pentru selecția candidaților
+        candidateCards.forEach(card => {
+            card.addEventListener('click', function() {
+                const position = this.dataset.position;
+                const candidate = this.dataset.candidate;
+
+                // Dezactivează selecția pentru toți candidații din aceeași poziție
+                document.querySelectorAll(`.candidate-card[data-position="${position}"]`).forEach(c => {
+                    c.classList.remove('selected');
+                });
+
+                // Activează selecția pentru candidatul ales
+                this.classList.add('selected');
+
+                // Salvează selecția
+                selectedCandidates[position] = candidate;
+
+                // Verifică dacă toate pozițiile au fost completate
+                checkAllPositionsSelected();
+            });
+        });
+
+        // Eveniment pentru trimiterea votului
+        submitVoteBtn.addEventListener('click', submitVote);
+
+        // Eveniment pentru delogare
+        logoutBtn.addEventListener('click', logout);
+
+        // Funcții
+        async function checkUserStatus() {
+            try {
+                loadingDiv.style.display = 'block';
+                
+                // Obține user_id din localStorage
+                userId = localStorage.getItem('cutm_user_id');
+                const storedUserData = localStorage.getItem('cutm_user_data');
+
+                if (!userId) {
+                    // Utilizatorul nu este autentificat
+                    showVotingMessage('error', 'Nu sunteți autentificat. Vă rugăm să vă verificați carnetul mai întâi.');
+                    votingSection.style.display = 'none';
+                    return;
+                }
+
+                if (storedUserData) {
+                    userData = JSON.parse(storedUserData);
+                    userName.textContent = userData.nume || 'Necunoscut';
+                    userEmail.textContent = userData.email || 'Necunoscut';
+                }
+
+                // Verifică statusul votului
+                const response = await fetch(`/.netlify/functions/status?user_id=${userId}`);
+                const data = await response.json();
+
+                if (data.authenticated) {
+                    if (data.has_voted) {
+                        // Utilizatorul a votat deja
+                        voteStatus.innerHTML = '<span style="color: var(--success);">✅ Ați votat deja</span>';
+                        votingSection.style.display = 'none';
+                        resultsSection.style.display = 'block';
+                        showVoteSummary();
+                    } else {
+                        // Utilizatorul poate vota
+                        voteStatus.innerHTML = '<span style="color: var(--secondary);">🟡 Nu ați votat încă</span>';
+                        votingSection.style.display = 'block';
+                        resultsSection.style.display = 'none';
+                    }
+                } else {
+                    // Utilizatorul nu este autentificat
+                    voteStatus.innerHTML = '<span style="color: var(--error);">❌ Necesită verificare</span>';
+                    showVotingMessage('error', 'Sesiunea a expirat. Vă rugăm să vă verificați carnetul din nou.');
+                    votingSection.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Eroare la verificarea stării:', error);
+                showVotingMessage('error', 'Eroare de conexiune. Vă rugăm încercați din nou.');
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+        function checkAllPositionsSelected() {
+            const positions = ['president', 'vicePresident', 'cultureMinister', 'administrationMinister', 'socialMediaMinister'];
+            const allSelected = positions.every(position => selectedCandidates[position]);
+
+            if (allSelected) {
+                submitVoteBtn.style.display = 'block';
+                showVotingMessage('success', 'Toate pozițiile au fost completate! Acum poți trimite votul.');
+            } else {
+                submitVoteBtn.style.display = 'none';
+                votingMessage.style.display = 'none';
+            }
+        }
+
+        async function submitVote() {
+            try {
+                loadingDiv.style.display = 'block';
+                submitVoteBtn.disabled = true;
+
+                const response = await fetch('/.netlify/functions/vote', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        vote_data: selectedCandidates
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Vot înregistrat cu succes
+                    votingSection.style.display = 'none';
+                    resultsSection.style.display = 'block';
+                    showVoteSummary();
+                    
+                    // Actualizează indicatorul pașilor
+                    updateStepIndicator(3);
+                } else {
+                    // Eroare la votare
+                    showVotingMessage('error', data.error);
+                    submitVoteBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Eroare la trimiterea votului:', error);
+                showVotingMessage('error', 'Eroare de conexiune. Vă rugăm încercați din nou.');
+                submitVoteBtn.disabled = false;
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+        function showVoteSummary() {
+            const positionNames = {
+                president: 'Președinte',
+                vicePresident: 'Vicepreședinte',
+                cultureMinister: 'Ministru Culturi și Sărbători',
+                administrationMinister: 'Ministru Administrație',
+                socialMediaMinister: 'Ministru Social Media'
+            };
+
+            let summaryHTML = '';
+
+            for (const [position, candidate] of Object.entries(selectedCandidates)) {
+                summaryHTML += `
+                    <div class="result-candidate">
+                        <h4>${positionNames[position] || position}:</h4>
+                        <p><strong>${candidate}</strong></p>
+                    </div>
+                `;
+            }
+
+            voteSummary.innerHTML = summaryHTML;
+        }
+
+        function updateStepIndicator(stepNumber) {
+            const steps = document.querySelectorAll('.step');
+            const stepLines = document.querySelectorAll('.step-line');
+
+            steps.forEach((step, index) => {
+                if (index + 1 < stepNumber) {
+                    step.classList.remove('active');
+                    step.classList.add('completed');
+                } else if (index + 1 === stepNumber) {
+                    step.classList.add('active');
+                    step.classList.remove('completed');
+                } else {
+                    step.classList.remove('active', 'completed');
+                }
+            });
+
+            stepLines.forEach((line, index) => {
+                if (index + 1 < stepNumber) {
+                    line.classList.remove('active');
+                    line.classList.add('completed');
+                } else if (index + 1 === stepNumber) {
+                    line.classList.add('active');
+                    line.classList.remove('completed');
+                } else {
+                    line.classList.remove('active', 'completed');
+                }
+            });
+        }
+
+        function showVotingMessage(type, text) {
+            votingMessage.className = `message ${type}`;
+            votingMessage.innerHTML = `
+                <h3>${type === 'success' ? '✅' : '❌'} ${text}</h3>
+            `;
+            votingMessage.style.display = 'block';
+        }
+
+        function logout() {
+            // Șterge datele din localStorage
+            localStorage.removeItem('cutm_user_id');
+            localStorage.removeItem('cutm_user_data');
+            
+            // Redirecționează către pagina de verificare
+            window.location.href = '/index.html';
+        }
+    </script>
+</body>
+</html>
