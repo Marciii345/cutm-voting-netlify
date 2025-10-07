@@ -1,40 +1,28 @@
-const { v4: uuidv4 } = require('uuid');
+// netlify/functions/verify.js
+const supabase = require('./database');
+const bcrypt = require('bcryptjs');
 
-// Simulăm o bază de date în memorie (în producție folosești Firebase sau alt serviciu)
-let verifiedUsers = new Map();
-let carnetHashes = new Set();
-
-exports.handler = async function(event, context) {
-  // CORS headers
+exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS, GET'
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
 
-  // Handle preflight
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers,
-      body: ''
-    };
+    return { statusCode: 200, headers, body: '' };
   }
 
-  try {
-    if (event.httpMethod === 'POST') {
-      const body = JSON.parse(event.body);
-      const { email, password, image_data } = body;
+  if (event.httpMethod === 'POST') {
+    try {
+      const { email, password, image_data, nume, numar_carnet, clasa } = JSON.parse(event.body);
 
-      // Validare de bază
-      if (!email || !password) {
+      // Validări
+      if (!email || !password || !image_data || !nume || !numar_carnet || !clasa) {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({
-            success: false,
-            error: "Email și parolă sunt obligatorii"
-          })
+          body: JSON.stringify({ error: 'Toate câmpurile sunt obligatorii' })
         };
       }
 
@@ -42,100 +30,98 @@ exports.handler = async function(event, context) {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({
-            success: false,
-            error: "Parola trebuie să aibă minim 6 caractere"
-          })
+          body: JSON.stringify({ error: 'Parola trebuie să aibă minim 6 caractere' })
         };
       }
 
-      // Simulăm verificarea carnetului (în producție ai folosi OCR aici)
-      // Pentru demo, considerăm că orice imagine este validă
-      const carnetHash = generateCarnetHash(image_data);
-      
-      if (carnetHashes.has(carnetHash)) {
+      // Verifică dacă email-ul sau carnetul există deja
+      const { data: existingUser, error: existingError } = await supabase
+        .from('users')
+        .select('id')
+        .or(`email.eq.${email},numar_carnet.eq.${numar_carnet}`)
+        .single();
+
+      if (existingUser) {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({
-            success: false,
-            error: "Acest carnet a fost deja înregistrat"
-          })
+          body: JSON.stringify({ error: 'Email-ul sau numărul de carnet există deja în sistem' })
         };
       }
 
-      // Extragem date simulate din "carnet"
-      const studentData = extractStudentData(image_data);
-      
-      // Generăm ID utilizator
-      const userId = uuidv4();
-      
-      // Salvăm utilizatorul
-      const userData = {
-        userId,
-        email,
-        nume: studentData.nume,
-        numar_carnet: studentData.numar_carnet,
-        gen: studentData.gen,
-        carnetHash,
-        data_inregistrare: new Date().toISOString(),
-        a_votat: false
-      };
+      // Hash parolă
+      const passwordHash = await bcrypt.hash(password, 12);
 
-      verifiedUsers.set(userId, userData);
-      carnetHashes.add(carnetHash);
+      // Inserează utilizatorul
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .insert([
+          { 
+            email: email, 
+            password_hash: passwordHash, 
+            nume: nume, 
+            numar_carnet: numar_carnet, 
+            clasa: clasa, 
+            is_verified: false 
+          }
+        ])
+        .select()
+        .single();
 
-      console.log(`✅ Utilizator înregistrat: ${email}`);
+      if (userError) {
+        console.error('Eroare la inserare utilizator:', userError);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: 'Eroare la înregistrare' })
+        };
+      }
+
+      // CORECTARE CRITICĂ: Salvează imaginea pentru verificare
+      const { error: verificationError } = await supabase
+        .from('pending_verifications')
+        .insert([
+          { 
+            user_id: user.id, 
+            image_data: image_data,
+            status: 'pending'
+          }
+        ]);
+
+      if (verificationError) {
+        console.error('Eroare la salvarea verificării:', verificationError);
+        // Șterge utilizatorul creat dacă nu putem salva verificarea
+        await supabase
+          .from('users')
+          .delete()
+          .eq('id', user.id);
+          
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: 'Eroare la salvarea imaginii' })
+        };
+      }
 
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({
           success: true,
-          message: "Carnet verificat cu succes!",
-          user_data: {
-            nume: studentData.nume,
-            email: email,
-            numar_carnet: studentData.numar_carnet,
-            gen: studentData.gen
-          },
-          user_id: userId,
-          redirect: "/vot.html"
+          message: 'Înregistrare reușită! Așteptați verificarea manuală de către administrator.',
+          userId: user.id.toString()
         })
       };
+
+    } catch (error) {
+      console.error('Eroare verificare:', error);
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ error: 'Eroare internă server. Vă rugăm încercați mai târziu.' })
+      };
     }
-
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ error: "Method not allowed" })
-    };
-
-  } catch (error) {
-    console.error('Eroare la verificare:', error);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ 
-        success: false, 
-        error: "Eroare internă la procesare" 
-      })
-    };
   }
+
+  return { statusCode: 405, headers, body: 'Method Not Allowed' };
 };
-
-// Funcții helper
-function generateCarnetHash(imageData) {
-  // Simplificat pentru demo
-  return Buffer.from(imageData).toString('base64').substring(0, 32) + Date.now();
-}
-
-function extractStudentData(imageData) {
-  // În producție, ai folosi OCR aici
-  // Pentru demo, returnăm date simulate
-  return {
-    nume: "Elev UTM",
-    numar_carnet: "UTM" + Math.random().toString(36).substr(2, 5).toUpperCase(),
-    gen: Math.random() > 0.5 ? "M" : "F"
-  };
-}

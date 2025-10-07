@@ -6,8 +6,6 @@
     <title>Votare - Consiliul Elevilor CUTM</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Stilurile complete din versiunea anterioară a vot.html */
-        /* Le păstrăm identice pentru consistență */
         :root {
             --primary: #203535;
             --secondary: #0088A3;
@@ -361,6 +359,16 @@
             background: var(--success);
         }
 
+        .not-verified-warning {
+            background: rgba(243, 156, 18, 0.1);
+            border: 1px solid var(--warning);
+            color: var(--warning);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
         @media (max-width: 768px) {
             .candidates-grid {
                 grid-template-columns: 1fr;
@@ -407,6 +415,14 @@
             <div class="step">3</div>
         </div>
 
+        <!-- Avertisment cont neverificat -->
+        <div class="not-verified-warning" id="notVerifiedWarning" style="display: none;">
+            <h3><i class="fas fa-exclamation-triangle"></i> Cont în așteptare</h3>
+            <p>Contul dumneavoastră așteaptă verificarea manuală de către administrator.</p>
+            <p><strong>Nu puteți vota până când contul nu este verificat.</strong></p>
+            <p>Verificarea poate dura până la 24 de ore.</p>
+        </div>
+
         <!-- Secțiunea de votare -->
         <div class="voting-section" id="votingSection">
             <h2 class="section-title">Alege-ți candidații</h2>
@@ -447,7 +463,7 @@
             <!-- Vicepreședinte -->
             <h3 class="position-title">Vicepreședinte</h3>
             <div class="candidates-grid">
-                <div class="candidate-card" data-position="vicePresident" data-candidate="Morari Marcel">
+                <div class="candidate-card" data-position="vice_president" data-candidate="Morari Marcel">
                     <div class="candidate-image">
                         <i class="fas fa-user"></i>
                     </div>
@@ -460,7 +476,7 @@
                     </div>
                 </div>
 
-                <div class="candidate-card" data-position="vicePresident" data-candidate="Ostoianu Vadim">
+                <div class="candidate-card" data-position="vice_president" data-candidate="Ostoianu Vadim">
                     <div class="candidate-image">
                         <i class="fas fa-user"></i>
                     </div>
@@ -477,7 +493,7 @@
             <!-- Ministru pe Culturi și Sărbători -->
             <h3 class="position-title">Ministru pe Culturi și Sărbători</h3>
             <div class="candidates-grid">
-                <div class="candidate-card" data-position="cultureMinister" data-candidate="Cotoman Alexsandra">
+                <div class="candidate-card" data-position="culture_minister" data-candidate="Cotoman Alexsandra">
                     <div class="candidate-image">
                         <i class="fas fa-user"></i>
                     </div>
@@ -490,7 +506,7 @@
                     </div>
                 </div>
 
-                <div class="candidate-card" data-position="cultureMinister" data-candidate="Braga Iulia">
+                <div class="candidate-card" data-position="culture_minister" data-candidate="Braga Iulia">
                     <div class="candidate-image">
                         <i class="fas fa-user"></i>
                     </div>
@@ -507,7 +523,7 @@
             <!-- Ministru pe Administrație -->
             <h3 class="position-title">Ministru pe Administrație</h3>
             <div class="candidates-grid">
-                <div class="candidate-card" data-position="administrationMinister" data-candidate="Leahu Iana">
+                <div class="candidate-card" data-position="administration_minister" data-candidate="Leahu Iana">
                     <div class="candidate-image">
                         <i class="fas fa-user"></i>
                     </div>
@@ -520,7 +536,7 @@
                     </div>
                 </div>
 
-                <div class="candidate-card" data-position="administrationMinister" data-candidate="Braga Beatrice">
+                <div class="candidate-card" data-position="administration_minister" data-candidate="Braga Beatrice">
                     <div class="candidate-image">
                         <i class="fas fa-user"></i>
                     </div>
@@ -533,7 +549,7 @@
                     </div>
                 </div>
 
-                <div class="candidate-card" data-position="administrationMinister" data-candidate="Jecari Oleg">
+                <div class="candidate-card" data-position="administration_minister" data-candidate="Jecari Oleg">
                     <div class="candidate-image">
                         <i class="fas fa-user"></i>
                     </div>
@@ -546,7 +562,7 @@
                     </div>
                 </div>
 
-                <div class="candidate-card" data-position="administrationMinister" data-candidate="Magari Marius">
+                <div class="candidate-card" data-position="administration_minister" data-candidate="Magari Marius">
                     <div class="candidate-image">
                         <i class="fas fa-user"></i>
                     </div>
@@ -563,7 +579,7 @@
             <!-- Ministru pe Social Media -->
             <h3 class="position-title">Ministru pe Social Media</h3>
             <div class="candidates-grid">
-                <div class="candidate-card" data-position="socialMediaMinister" data-candidate="Radalina Ursu">
+                <div class="candidate-card" data-position="social_media_minister" data-candidate="Radalina Ursu">
                     <div class="candidate-image">
                         <i class="fas fa-user"></i>
                     </div>
@@ -576,7 +592,7 @@
                     </div>
                 </div>
 
-                <div class="candidate-card" data-position="socialMediaMinister" data-candidate="Vadim Usatai">
+                <div class="candidate-card" data-position="social_media_minister" data-candidate="Vadim Usatai">
                     <div class="candidate-image">
                         <i class="fas fa-user"></i>
                     </div>
@@ -589,7 +605,7 @@
                     </div>
                 </div>
 
-                <div class="candidate-card" data-position="socialMediaMinister" data-candidate="Usru Gleb">
+                <div class="candidate-card" data-position="social_media_minister" data-candidate="Usru Gleb">
                     <div class="candidate-image">
                         <i class="fas fa-user"></i>
                     </div>
@@ -641,7 +657,7 @@
         // Variabile globale
         let selectedCandidates = {};
         let userData = {};
-        let userId = null;
+        let token = null;
 
         // Elemente DOM
         const userInfo = document.getElementById('userInfo');
@@ -656,6 +672,7 @@
         const voteSummary = document.getElementById('voteSummary');
         const loadingDiv = document.getElementById('loading');
         const logoutBtn = document.getElementById('logoutBtn');
+        const notVerifiedWarning = document.getElementById('notVerifiedWarning');
 
         // Verifică starea la încărcarea paginii
         document.addEventListener('DOMContentLoaded', checkUserStatus);
@@ -693,13 +710,13 @@
             try {
                 loadingDiv.style.display = 'block';
                 
-                // Obține user_id din localStorage
-                userId = localStorage.getItem('cutm_user_id');
+                // Obține token din localStorage
+                token = localStorage.getItem('cutm_token');
                 const storedUserData = localStorage.getItem('cutm_user_data');
 
-                if (!userId) {
+                if (!token) {
                     // Utilizatorul nu este autentificat
-                    showVotingMessage('error', 'Nu sunteți autentificat. Vă rugăm să vă verificați carnetul mai întâi.');
+                    showVotingMessage('error', 'Nu sunteți autentificat. Vă rugăm să vă autentificați mai întâi.');
                     votingSection.style.display = 'none';
                     return;
                 }
@@ -711,7 +728,12 @@
                 }
 
                 // Verifică statusul votului
-                const response = await fetch(`/.netlify/functions/status?user_id=${userId}`);
+                const response = await fetch('/.netlify/functions/status', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
                 const data = await response.json();
 
                 if (data.authenticated) {
@@ -721,16 +743,23 @@
                         votingSection.style.display = 'none';
                         resultsSection.style.display = 'block';
                         showVoteSummary();
+                    } else if (!data.is_verified) {
+                        // Utilizatorul nu este verificat
+                        voteStatus.innerHTML = '<span style="color: var(--warning);">🟡 În așteptarea verificării</span>';
+                        votingSection.style.display = 'none';
+                        notVerifiedWarning.style.display = 'block';
+                        showVotingMessage('info', 'Contul dumneavoastră așteaptă verificarea. Veți putea vota după ce administratorul vă va aproba contul.');
                     } else {
                         // Utilizatorul poate vota
-                        voteStatus.innerHTML = '<span style="color: var(--secondary);">🟡 Nu ați votat încă</span>';
+                        voteStatus.innerHTML = '<span style="color: var(--secondary);">🟢 Poate vota</span>';
                         votingSection.style.display = 'block';
                         resultsSection.style.display = 'none';
+                        notVerifiedWarning.style.display = 'none';
                     }
                 } else {
                     // Utilizatorul nu este autentificat
-                    voteStatus.innerHTML = '<span style="color: var(--error);">❌ Necesită verificare</span>';
-                    showVotingMessage('error', 'Sesiunea a expirat. Vă rugăm să vă verificați carnetul din nou.');
+                    voteStatus.innerHTML = '<span style="color: var(--error);">❌ Necesită autentificare</span>';
+                    showVotingMessage('error', 'Sesiunea a expirat. Vă rugăm să vă autentificați din nou.');
                     votingSection.style.display = 'none';
                 }
             } catch (error) {
@@ -742,7 +771,7 @@
         }
 
         function checkAllPositionsSelected() {
-            const positions = ['president', 'vicePresident', 'cultureMinister', 'administrationMinister', 'socialMediaMinister'];
+            const positions = ['president', 'vice_president', 'culture_minister', 'administration_minister', 'social_media_minister'];
             const allSelected = positions.every(position => selectedCandidates[position]);
 
             if (allSelected) {
@@ -762,12 +791,10 @@
                 const response = await fetch('/.netlify/functions/vote', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({
-                        user_id: userId,
-                        vote_data: selectedCandidates
-                    })
+                    body: JSON.stringify(selectedCandidates)
                 });
 
                 const data = await response.json();
@@ -780,6 +807,9 @@
                     
                     // Actualizează indicatorul pașilor
                     updateStepIndicator(3);
+                    
+                    // Actualizează statusul
+                    voteStatus.innerHTML = '<span style="color: var(--success);">✅ Ați votat deja</span>';
                 } else {
                     // Eroare la votare
                     showVotingMessage('error', data.error);
@@ -797,10 +827,10 @@
         function showVoteSummary() {
             const positionNames = {
                 president: 'Președinte',
-                vicePresident: 'Vicepreședinte',
-                cultureMinister: 'Ministru Culturi și Sărbători',
-                administrationMinister: 'Ministru Administrație',
-                socialMediaMinister: 'Ministru Social Media'
+                vice_president: 'Vicepreședinte',
+                culture_minister: 'Ministru Culturi și Sărbători',
+                administration_minister: 'Ministru Administrație',
+                social_media_minister: 'Ministru Social Media'
             };
 
             let summaryHTML = '';
@@ -848,18 +878,13 @@
 
         function showVotingMessage(type, text) {
             votingMessage.className = `message ${type}`;
-            votingMessage.innerHTML = `
-                <h3>${type === 'success' ? '✅' : '❌'} ${text}</h3>
-            `;
+            votingMessage.innerHTML = text;
             votingMessage.style.display = 'block';
         }
 
         function logout() {
-            // Șterge datele din localStorage
-            localStorage.removeItem('cutm_user_id');
+            localStorage.removeItem('cutm_token');
             localStorage.removeItem('cutm_user_data');
-            
-            // Redirecționează către pagina de verificare
             window.location.href = '/index.html';
         }
     </script>
