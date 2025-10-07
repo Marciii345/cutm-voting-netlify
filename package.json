@@ -1,14 +1,15 @@
 {
   "name": "cutm-voting-netlify",
-  "version": "2.0.0",
-  "description": "Sistem de votare securizat pentru Consiliul Elevilor CUTM",
+  "version": "3.0.0",
+  "description": "Sistem de votare securizat cu verificare automată a carnetelor",
   "scripts": {
     "build": "echo 'Building for Netlify'"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
-    "@supabase/supabase-js": "^2.38.0"
+    "@supabase/supabase-js": "^2.38.0",
+    "tesseract.js": "^4.1.1"
   },
   "devDependencies": {
     "@netlify/functions": "^2.0.0"

@@ -23,7 +23,7 @@ exports.handler = async (event) => {
     const user = verify(token, process.env.JWT_SECRET);
 
     if (!user.isAdmin) {
-      return { statusCode: 403, headers, body: JSON.stringify({ error: 'Acces restricționat. Doar administratorii pot accesa această resursă.' }) };
+      return { statusCode: 403, headers, body: JSON.stringify({ error: 'Acces restricționat' }) };
     }
 
     // GET - Statistici și date
@@ -46,9 +46,15 @@ exports.handler = async (event) => {
           .select('*', { count: 'exact', head: true });
 
         const { count: pendingVerifications } = await supabase
-          .from('pending_verifications')
+          .from('verified_carnets')
           .select('*', { count: 'exact', head: true })
           .eq('status', 'pending');
+
+        const { count: autoVerified } = await supabase
+          .from('verified_carnets')
+          .select('*', { count: 'exact', head: true })
+          .eq('auto_verified', true)
+          .eq('status', 'approved');
 
         const participationRate = verifiedUsers > 0 
           ? ((totalVotes / verifiedUsers) * 100).toFixed(1) 
@@ -63,95 +69,95 @@ exports.handler = async (event) => {
               verifiedUsers,
               totalVotes,
               pendingVerifications,
+              autoVerified,
               participationRate
             }
           })
         };
       }
 
-      // Utilizatori în așteptare - CORECTAT
-      if (action === 'pending_users') {
-        // Mai întâi obținem toate verificările în așteptare
-        const { data: pendingVerifications, error } = await supabase
-          .from('pending_verifications')
-          .select('*')
+      // Carnete în așteptare - combinat cu pending_verifications pentru compatibilitate
+      if (action === 'pending_carnets') {
+        const { data: pendingCarnets, error } = await supabase
+          .from('verified_carnets')
+          .select(`
+            *,
+            users (
+              email,
+              nume,
+              numar_carnet,
+              clasa,
+              is_verified
+            )
+          `)
           .eq('status', 'pending')
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('Eroare la preluarea verificărilor:', error);
-          return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ error: 'Eroare la preluarea datelor' })
-          };
+          return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la preluare date' }) };
         }
-
-        // Dacă nu există verificări, returnăm un array gol
-        if (pendingVerifications.length === 0) {
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({ pendingUsers: [] })
-          };
-        }
-
-        // Obținem toți userii corespunzători
-        const userIds = pendingVerifications.map(pv => pv.user_id);
-        const { data: users, error: usersError } = await supabase
-          .from('users')
-          .select('*')
-          .in('id', userIds);
-
-        if (usersError) {
-          console.error('Eroare la preluarea utilizatorilor:', usersError);
-          return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ error: 'Eroare la preluarea utilizatorilor' })
-          };
-        }
-
-        // Combinăm datele
-        const formattedUsers = pendingVerifications.map(pv => {
-          const user = users.find(u => u.id === pv.user_id);
-          if (!user) {
-            return null;
-          }
-          return {
-            id: user.id,
-            verification_id: pv.id,
-            email: user.email,
-            nume: user.nume,
-            numar_carnet: user.numar_carnet,
-            clasa: user.clasa,
-            image_data: pv.image_data,
-            status: pv.status,
-            created_at: pv.created_at
-          };
-        }).filter(Boolean); // Elimină orice element null
 
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify({ pendingUsers: formattedUsers })
+          body: JSON.stringify({ pendingCarnets })
         };
       }
 
-      // Toți utilizatorii
-      if (action === 'all_users') {
-        const { data: users, error } = await supabase
-          .from('users')
-          .select('id, email, nume, numar_carnet, clasa, is_verified, created_at')
+      // Toate carnetele verificate
+      if (action === 'all_carnets') {
+        const { data: allCarnets, error } = await supabase
+          .from('verified_carnets')
+          .select(`
+            *,
+            users (
+              email,
+              nume,
+              numar_carnet,
+              clasa,
+              is_verified
+            )
+          `)
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('Eroare la preluarea utilizatorilor:', error);
-          return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ error: 'Eroare la preluarea datelor' })
-          };
+          return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la preluare date' }) };
+        }
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ allCarnets })
+        };
+      }
+
+      // Probleme tehnice
+      if (action === 'technical_issues') {
+        const { data: issues, error } = await supabase
+          .from('technical_issues')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la preluare probleme' }) };
+        }
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ issues })
+        };
+      }
+
+      // Utilizatori pentru compatibilitate
+      if (action === 'all_users') {
+        const { data: users, error } = await supabase
+          .from('users')
+          .select('id, email, nume, numar_carnet, clasa, is_verified, is_admin, created_at')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la preluare utilizatori' }) };
         }
 
         return {
@@ -164,11 +170,25 @@ exports.handler = async (event) => {
 
     // POST - Acțiuni admin
     if (event.httpMethod === 'POST') {
-      const { action, userId, verificationId, approve, reason } = JSON.parse(event.body);
+      const { action, carnetId, userId, approve, reason, issueId, resolve } = JSON.parse(event.body);
 
-      // Verificare utilizator
-      if (action === 'verify_user') {
+      // Verificare carnet
+      if (action === 'verify_carnet') {
         if (approve) {
+          // Aprobă carnetul
+          const { error: carnetError } = await supabase
+            .from('verified_carnets')
+            .update({ 
+              status: 'approved',
+              verified_at: new Date().toISOString(),
+              admin_notes: reason || 'Aprobat manual de administrator'
+            })
+            .eq('id', carnetId);
+
+          if (carnetError) {
+            return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la aprobare' }) };
+          }
+
           // Actualizează utilizatorul ca verificat
           const { error: userError } = await supabase
             .from('users')
@@ -176,95 +196,137 @@ exports.handler = async (event) => {
             .eq('id', userId);
 
           if (userError) {
-            console.error('Eroare la aprobare utilizator:', userError);
-            return {
-              statusCode: 500,
-              headers,
-              body: JSON.stringify({ error: 'Eroare la aprobare utilizator' })
-            };
+            return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la actualizare utilizator' }) };
           }
 
-          // Actualizează statusul verificării
-          const { error: verificationError } = await supabase
+          // Actualizează și pending_verifications pentru compatibilitate
+          await supabase
             .from('pending_verifications')
             .update({ status: 'approved' })
-            .eq('id', verificationId);
-
-          if (verificationError) {
-            console.error('Eroare la actualizarea verificării:', verificationError);
-            return {
-              statusCode: 500,
-              headers,
-              body: JSON.stringify({ error: 'Eroare la actualizarea verificării' })
-            };
-          }
+            .eq('user_id', userId);
 
           return {
             statusCode: 200,
             headers,
             body: JSON.stringify({ 
               success: true, 
-              message: 'Utilizator aprobat cu succes!' 
+              message: 'Carnet aprobat cu succes!' 
             })
           };
         } else {
-          // Respinge utilizator - șterge din ambele tabele
-          const { error: deleteUserError } = await supabase
-            .from('users')
-            .delete()
-            .eq('id', userId);
+          // Respinge carnetul
+          const { error: carnetError } = await supabase
+            .from('verified_carnets')
+            .update({ 
+              status: 'rejected',
+              admin_notes: reason || 'Respins de administrator'
+            })
+            .eq('id', carnetId);
 
-          if (deleteUserError) {
-            console.error('Eroare la ștergerea utilizatorului:', deleteUserError);
-            return {
-              statusCode: 500,
-              headers,
-              body: JSON.stringify({ error: 'Eroare la respingere utilizator' })
-            };
+          if (carnetError) {
+            return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la respingere' }) };
           }
 
-          // Șterge și din pending_verifications
+          // Respinge și în pending_verifications
           await supabase
             .from('pending_verifications')
-            .delete()
-            .eq('id', verificationId);
+            .update({ status: 'rejected' })
+            .eq('user_id', userId);
 
           return {
             statusCode: 200,
             headers,
             body: JSON.stringify({ 
               success: true, 
-              message: 'Utilizator respins și șters din sistem.' 
+              message: 'Carnet respins!' 
             })
           };
         }
       }
 
-      // Cerere retransmisie imagine
-      if (action === 'request_resubmission') {
-        const { error: updateError } = await supabase
-          .from('pending_verifications')
-          .update({ 
-            status: 'needs_resubmission',
-            admin_notes: reason || 'Imagine neclară sau incompletă. Vă rugăm reîncarcați o imagine clară a carnetului.'
-          })
-          .eq('id', verificationId);
+      // Gestionare probleme tehnice
+      if (action === 'handle_issue') {
+        if (resolve) {
+          // Rezolvă problema
+          const { error } = await supabase
+            .from('technical_issues')
+            .update({ 
+              status: 'resolved',
+              resolved_at: new Date().toISOString()
+            })
+            .eq('id', issueId);
 
-        if (updateError) {
-          console.error('Eroare la cererea de retransmisie:', updateError);
+          if (error) {
+            return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la rezolvare problemă' }) };
+          }
+
           return {
-            statusCode: 500,
+            statusCode: 200,
             headers,
-            body: JSON.stringify({ error: 'Eroare la cererea de retransmisie' })
+            body: JSON.stringify({ 
+              success: true, 
+              message: 'Problemă marcată ca rezolvată!' 
+            })
+          };
+        } else {
+          // Șterge problema
+          const { error } = await supabase
+            .from('technical_issues')
+            .delete()
+            .eq('id', issueId);
+
+          if (error) {
+            return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la ștergere problemă' }) };
+          }
+
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ 
+              success: true, 
+              message: 'Problemă ștearsă!' 
+            })
           };
         }
+      }
+
+      // Deconectare carnet (respingere post-factum)
+      if (action === 'disconnect_carnet') {
+        // Respinge carnetul
+        const { error: carnetError } = await supabase
+          .from('verified_carnets')
+          .update({ 
+            status: 'rejected',
+            admin_notes: reason || 'Deconectat de administrator'
+          })
+          .eq('id', carnetId);
+
+        if (carnetError) {
+          return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la deconectare' }) };
+        }
+
+        // Dezactivează utilizatorul
+        const { error: userError } = await supabase
+          .from('users')
+          .update({ is_verified: false })
+          .eq('id', userId);
+
+        if (userError) {
+          return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la dezactivare utilizator' }) };
+        }
+
+        // Dezactivează și în pending_verifications
+        await supabase
+          .from('pending_verifications')
+          .update({ status: 'rejected' })
+          .eq('user_id', userId);
 
         return {
           statusCode: 200,
           headers,
           body: JSON.stringify({ 
             success: true, 
-            message: 'Cerere de retransmisie trimisă utilizatorului.' 
+            message: 'Carnet deconectat și utilizator dezactivat!' 
           })
         };
       }
@@ -277,12 +339,7 @@ exports.handler = async (event) => {
           .neq('id', 0);
 
         if (error) {
-          console.error('Eroare la resetarea voturilor:', error);
-          return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ error: 'Eroare la resetarea voturilor' })
-          };
+          return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la resetare voturi' }) };
         }
 
         return {
@@ -290,7 +347,7 @@ exports.handler = async (event) => {
           headers,
           body: JSON.stringify({ 
             success: true, 
-            message: 'Toate voturile au fost resetate cu succes!' 
+            message: 'Toate voturile au fost resetate!' 
           })
         };
       }
@@ -316,12 +373,7 @@ exports.handler = async (event) => {
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('Eroare la exportul datelor:', error);
-          return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ error: 'Eroare la exportul datelor' })
-          };
+          return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la export date' }) };
         }
 
         const formattedVotes = votes.map(vote => ({

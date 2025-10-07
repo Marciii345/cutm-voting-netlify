@@ -444,6 +444,93 @@
             font-family: 'Courier New', monospace;
         }
 
+        /* Stiluri pentru pagina de succes verificare */
+        .verified-success {
+            text-align: center;
+        }
+
+        .verified-icon {
+            font-size: 4rem;
+            color: var(--success);
+            margin-bottom: 20px;
+        }
+
+        /* Buton raportare problema */
+        .report-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--warning);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            z-index: 1000;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+
+        .report-button:hover {
+            background: #e67e22;
+            transform: translateY(-2px);
+        }
+
+        /* Modal raportare problema */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            background: var(--warning);
+            color: white;
+            padding: 20px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            flex: 1;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         /* Responsive adjustments */
         @media (max-width: 480px) {
             .container {
@@ -460,6 +547,13 @@
             
             .action-buttons {
                 flex-direction: column;
+            }
+            
+            .report-button {
+                bottom: 10px;
+                right: 10px;
+                padding: 12px 15px;
+                font-size: 0.9rem;
             }
         }
     </style>
@@ -665,6 +759,73 @@
         </div>
     </div>
 
+    <!-- Buton Raportare Problemă -->
+    <div class="report-button" id="reportButton">
+        <i class="fas fa-exclamation-triangle"></i>
+        Problemă Tehnică
+    </div>
+
+    <!-- Modal Raportare Problemă -->
+    <div class="modal" id="reportModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-exclamation-circle"></i> Raportează Problemă Tehnică</h3>
+                <button class="close-modal" onclick="closeReportModal()">&times;</button>
+            </div>
+            <form id="reportIssueForm">
+                <div class="form-group">
+                    <label for="reportEmail">Email:</label>
+                    <input type="email" id="reportEmail" name="email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="reportNume">Nume complet:</label>
+                    <input type="text" id="reportNume" name="nume" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="reportCarnet">Număr carnet (opțional):</label>
+                    <input type="text" id="reportCarnet" name="numar_carnet">
+                </div>
+
+                <div class="form-group">
+                    <label for="reportClasa">Clasa (opțional):</label>
+                    <input type="text" id="reportClasa" name="clasa">
+                </div>
+
+                <div class="form-group">
+                    <label for="issueType">Tip problemă:</label>
+                    <select id="issueType" name="issue_type" required>
+                        <option value="">Selectează tipul problemei</option>
+                        <option value="upload">Problemă încărcare imagine</option>
+                        <option value="verification">Problemă verificare cont</option>
+                        <option value="login">Problemă autentificare</option>
+                        <option value="voting">Problemă votare</option>
+                        <option value="other">Altă problemă</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="issueDescription">Descrie problema:</label>
+                    <textarea id="issueDescription" name="description" required 
+                              placeholder="Descrie în detaliu problema întâmpinată..." 
+                              rows="5"></textarea>
+                </div>
+
+                <div class="loading" id="reportLoading" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <p>Se trimite raportul...</p>
+                </div>
+
+                <div class="message" id="reportMessage"></div>
+
+                <button type="submit" class="btn btn-warning">
+                    <i class="fas fa-paper-plane"></i> Trimite Raportul
+                </button>
+            </form>
+        </div>
+    </div>
+
     <script>
         // Elemente DOM
         const uploadArea = document.getElementById('uploadArea');
@@ -685,10 +846,17 @@
         const switchToRegister = document.getElementById('switchToRegister');
         const adminLoginLink = document.getElementById('adminLoginLink');
         const mainContainer = document.getElementById('mainContainer');
+        const reportButton = document.getElementById('reportButton');
+        const reportModal = document.getElementById('reportModal');
+        const reportIssueForm = document.getElementById('reportIssueForm');
+        const reportMessage = document.getElementById('reportMessage');
+        const reportLoading = document.getElementById('reportLoading');
 
-        // Variabilă pentru stocarea imaginii
+        // Variabile globale
         let selectedFile = null;
         let currentUserData = {};
+        let statusCheckInterval = null;
+        let notificationCheckInterval = null;
 
         // Sistem de filtre
         tabs.forEach(tab => {
@@ -830,7 +998,7 @@
             await submitLogin(email, password);
         });
 
-        // Trimitere verificare - ACTUALIZATĂ
+        // Trimitere verificare
         async function submitVerification(email, password, nume, numar_carnet, clasa, imageFile) {
             loadingDiv.style.display = 'block';
             submitBtn.disabled = true;
@@ -853,8 +1021,19 @@
                     // Salvează datele utilizatorului
                     currentUserData = { email, nume, numar_carnet, clasa };
                     
-                    // Afișează pagina de așteptare
-                    showWaitingPage();
+                    if (data.auto_verified) {
+                        // Utilizatorul a fost verificat automat - autentifică-l direct
+                        showMessage(messageDiv, 'success', '✅ Înregistrare reușită! Contul a fost verificat automat.');
+                        setTimeout(async () => {
+                            await submitLogin(email, password);
+                        }, 2000);
+                    } else {
+                        // Utilizatorul necesită verificare manuală
+                        showMessage(messageDiv, 'success', '✅ Înregistrare reușită! Așteptați verificarea manuală.');
+                        setTimeout(async () => {
+                            await submitLogin(email, password);
+                        }, 2000);
+                    }
                     
                 } else {
                     showMessage(messageDiv, 'error', data.error);
@@ -870,9 +1049,9 @@
             }
         }
 
-        // NOUĂ FUNCȚIE - Pagina de așteptare
-        function showWaitingPage() {
-            const { email, nume, numar_carnet, clasa } = currentUserData;
+        // Pagina de așteptare cu verificare automată
+        function showWaitingPage(userData) {
+            const { email, nume, numar_carnet, clasa } = userData;
             
             mainContainer.innerHTML = `
                 <div class="header">
@@ -887,6 +1066,12 @@
                     <div class="message success" style="display: block;">
                         <h3><i class="fas fa-check-circle"></i> Înregistrare Reușită!</h3>
                         <p>Contul tău a fost creat și așteaptă verificarea.</p>
+                        <p><small><i class="fas fa-sync-alt"></i> Verificăm automat starea contului...</small></p>
+                    </div>
+
+                    <div style="background: var(--success); color: white; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                        <i class="fas fa-sync-alt fa-spin"></i> 
+                        Verificare automată activă - pagină se actualizează la fiecare 2 secunde
                     </div>
 
                     <div class="time-counter">
@@ -918,7 +1103,7 @@
                                 <div class="step-number">3</div>
                                 <div class="step-content">
                                     <h4>Acces la vot</h4>
-                                    <p>Poți să te autentifici și să votezi candidații preferați</p>
+                                    <p>Vei fi redirecționat automat către pagina de votare</p>
                                 </div>
                             </div>
                         </div>
@@ -935,17 +1120,16 @@
 
                     <div class="important-notice">
                         <h4><i class="fas fa-exclamation-triangle"></i> ATENȚIE IMPORTANTĂ</h4>
-                        <p><strong>Nu închide această pagină!</strong> Poți reveni oricând cu același email și parolă.</p>
-                        <p>Verificarea se face manual de către administrator - <strong>nu retrimite cererea!</strong></p>
-                        <p>Primești acces automat când contul este verificat.</p>
+                        <p><strong>Nu închide această pagină!</strong> Vei fi notificat automat când contul este verificat.</p>
+                        <p>Verificarea se face manual de către administrator.</p>
                     </div>
 
                     <div class="action-buttons">
                         <button class="btn btn-success" onclick="goToLoginPage()">
                             <i class="fas fa-sign-in-alt"></i> Mergi la Autentificare
                         </button>
-                        <button class="btn btn-warning" onclick="goBackToRegistration()">
-                            <i class="fas fa-redo"></i> Înregistrează alt cont
+                        <button class="btn btn-warning" onclick="checkVerificationStatus()">
+                            <i class="fas fa-sync-alt"></i> Verifică Starea Acum
                         </button>
                     </div>
 
@@ -953,7 +1137,7 @@
                         <h4><i class="fas fa-question-circle"></i> Ai întrebări?</h4>
                         <p>Contactează administratorul: <strong>administrator@utm.md</strong></p>
                         <p style="font-size: 0.9rem; margin-top: 8px; color: #666;">
-                            Sau verifică periodic contul prin autentificare
+                            Pagina se verifică automat. Poți închide fereastra și reveni mai târziu.
                         </p>
                     </div>
                 </div>
@@ -966,6 +1150,70 @@
 
             // Pornește counter-ul de timp
             startTimeCounter();
+            
+            // Pornește verificarea periodică a stării
+            statusCheckInterval = startStatusChecking();
+        }
+
+        // Pagina de succes după verificare
+        function showVerifiedSuccessPage(userData) {
+            mainContainer.innerHTML = `
+                <div class="header">
+                    <div class="logo">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="school-name">Colegiul UTM</div>
+                    <div class="subtitle">Cont verificat cu succes!</div>
+                </div>
+
+                <div class="content" style="text-align: center;">
+                    <div class="message success" style="display: block; margin-bottom: 30px;">
+                        <h3><i class="fas fa-check-circle"></i> Cont Verificat!</h3>
+                        <p>${userData.is_auto_verified ? 'Contul tău a fost verificat automat!' : 'Contul tău a fost verificat de administrator!'}</p>
+                        <p>Acum poți vota!</p>
+                    </div>
+
+                    <div class="user-data-card">
+                        <h4><i class="fas fa-user"></i> Datele tale</h4>
+                        <p><strong>Nume:</strong> ${userData.user_name}</p>
+                        <p><strong>Email:</strong> ${userData.user_email}</p>
+                        <p><strong>Carnet:</strong> ${userData.numar_carnet}</p>
+                        <p><strong>Clasa:</strong> ${userData.clasa}</p>
+                        <p><strong>Stare:</strong> <span style="color: var(--success); font-weight: 600;">✓ Verificat și Aprobat</span></p>
+                        ${userData.is_auto_verified ? '<p><strong>Tip verificare:</strong> <span style="color: var(--secondary);">Automată</span></p>' : '<p><strong>Tip verificare:</strong> <span style="color: var(--primary);">Manuală</span></p>'}
+                    </div>
+
+                    <div class="important-notice" style="background: rgba(46, 204, 113, 0.1); border-color: var(--success);">
+                        <h4><i class="fas fa-vote-yea"></i> Acum poți vota!</h4>
+                        <p>Contul tău a fost verificat și aprobat.</p>
+                        <p><strong>Poți accesa sistemul de votare acum!</strong></p>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-success" onclick="goToVotingPage()" style="margin: 10px;">
+                            <i class="fas fa-vote-yea"></i> Mergi la Votare
+                        </button>
+                        <button class="btn" onclick="logout()" style="margin: 10px;">
+                            <i class="fas fa-sign-out-alt"></i> Delogare
+                        </button>
+                    </div>
+
+                    <div style="margin-top: 25px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <h4><i class="fas fa-info-circle"></i> Informații importante</h4>
+                        <p>• Vei putea vota o singură dată</p>
+                        <p>• Votul este anonim și securizat</p>
+                        <p>• Ai la dispoziție 10 minute pentru a completa votul</p>
+                    </div>
+                </div>
+
+                <div class="footer">
+                    <p>Cont verificat • Sistem securizat de votare CUTM</p>
+                    <p>&copy; 2025 Toate drepturile rezervate</p>
+                </div>
+            `;
+
+            // Oprește verificarea periodică
+            stopStatusChecking();
         }
 
         // Counter pentru timpul de așteptare
@@ -1002,15 +1250,60 @@
             }, 1000);
         }
 
-        // Navigare către login
-        function goToLoginPage() {
-            // Reset container la starea inițială
-            location.reload();
-            // După reload, va fi pe pagina principală - userul poate da click pe Login
+        // Funcție pentru a verifica starea verificării periodic
+        async function checkVerificationStatus() {
+            const token = localStorage.getItem('cutm_token');
+            if (!token) return;
+
+            try {
+                const response = await fetch('/.netlify/functions/status', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const data = await response.json();
+                
+                if (data.authenticated && data.is_verified) {
+                    // Utilizatorul a fost verificat! Arată pagina de succes
+                    showVerifiedSuccessPage(data);
+                    stopStatusChecking();
+                }
+            } catch (error) {
+                console.error('Eroare la verificarea stării:', error);
+            }
         }
 
-        // Înapoi la înregistrare
-        function goBackToRegistration() {
+        // Verifică starea la fiecare 2 secunde când utilizatorul este pe pagina de așteptare
+        function startStatusChecking() {
+            return setInterval(checkVerificationStatus, 2000); // 2 secunde
+        }
+
+        // Oprire verificare periodică
+        function stopStatusChecking() {
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+                statusCheckInterval = null;
+            }
+            if (notificationCheckInterval) {
+                clearInterval(notificationCheckInterval);
+                notificationCheckInterval = null;
+            }
+        }
+
+        // Navigare către login
+        function goToLoginPage() {
+            stopStatusChecking();
+            location.reload();
+        }
+
+        // Navigare către votare
+        function goToVotingPage() {
+            window.location.href = '/vot.html';
+        }
+
+        // Funcție de delogare
+        function logout() {
+            localStorage.removeItem('cutm_token');
+            localStorage.removeItem('cutm_user_data');
             location.reload();
         }
 
@@ -1034,14 +1327,9 @@
                     localStorage.setItem('cutm_token', data.token);
                     localStorage.setItem('cutm_user_data', JSON.stringify(data.user));
                     
-                    setTimeout(() => {
-                        if (data.user.isAdmin) {
-                            window.location.href = '/admin.html';
-                        } else {
-                            window.location.href = '/vot.html';
-                        }
-                    }, 1000);
-
+                    // Verifică starea utilizatorului după autentificare
+                    await checkUserStatus(data.token);
+                    
                 } else {
                     showMessage(loginMessageDiv, 'error', data.error);
                 }
@@ -1091,11 +1379,17 @@
                 if (data.authenticated) {
                     if (data.isAdmin) {
                         window.location.href = '/admin.html';
-                    } else if (!data.has_voted) {
+                    } else if (data.is_verified && !data.has_voted) {
+                        // Utilizator verificat - redirecționează la votare
                         window.location.href = '/vot.html';
-                    } else {
+                    } else if (data.is_verified && data.has_voted) {
                         showMessage(loginMessageDiv, 'info', 
                             'Ați votat deja. Mulțumim pentru participare!');
+                    } else {
+                        // Utilizator neverificat - arată pagina de așteptare
+                        const userData = JSON.parse(localStorage.getItem('cutm_user_data'));
+                        currentUserData = userData;
+                        showWaitingPage(userData);
                     }
                 }
             } catch (error) {
@@ -1104,6 +1398,89 @@
                 localStorage.removeItem('cutm_user_data');
             }
         }
+
+        // Sistem raportare probleme
+        reportButton.addEventListener('click', openReportModal);
+
+        function openReportModal() {
+            reportModal.style.display = 'flex';
+            // Completează automat datele dacă utilizatorul este logat
+            const userData = JSON.parse(localStorage.getItem('cutm_user_data') || '{}');
+            if (userData.email) {
+                document.getElementById('reportEmail').value = userData.email;
+                document.getElementById('reportNume').value = userData.nume || '';
+                document.getElementById('reportCarnet').value = userData.numar_carnet || '';
+                document.getElementById('reportClasa').value = userData.clasa || '';
+            }
+        }
+
+        function closeReportModal() {
+            reportModal.style.display = 'none';
+            reportMessage.style.display = 'none';
+        }
+
+        reportIssueForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                email: document.getElementById('reportEmail').value,
+                nume: document.getElementById('reportNume').value,
+                numar_carnet: document.getElementById('reportCarnet').value,
+                clasa: document.getElementById('reportClasa').value,
+                issue_type: document.getElementById('issueType').value,
+                description: document.getElementById('issueDescription').value
+            };
+
+            if (!formData.email || !formData.nume || !formData.issue_type || !formData.description) {
+                showReportMessage('error', 'Toate câmpurile obligatorii trebuie completate');
+                return;
+            }
+
+            await submitIssueReport(formData);
+        });
+
+        async function submitIssueReport(formData) {
+            reportLoading.style.display = 'block';
+            reportMessage.style.display = 'none';
+
+            try {
+                const response = await fetch('/.netlify/functions/report-issue', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showReportMessage('success', data.message);
+                    reportIssueForm.reset();
+                    setTimeout(() => {
+                        closeReportModal();
+                    }, 3000);
+                } else {
+                    showReportMessage('error', data.error);
+                }
+            } catch (error) {
+                console.error('Eroare raportare:', error);
+                showReportMessage('error', 'Eroare de conexiune. Încercați din nou.');
+            } finally {
+                reportLoading.style.display = 'none';
+            }
+        }
+
+        function showReportMessage(type, text) {
+            reportMessage.className = `message ${type}`;
+            reportMessage.innerHTML = text;
+            reportMessage.style.display = 'block';
+        }
+
+        // Închide modal la click în afara
+        window.addEventListener('click', (e) => {
+            if (e.target === reportModal) {
+                closeReportModal();
+            }
+        });
 
         // Prevenirea închiderii paginii cu avertisment
         window.addEventListener('beforeunload', (e) => {

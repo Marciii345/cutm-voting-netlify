@@ -1,6 +1,8 @@
 // netlify/functions/verify.js
 const supabase = require('./database');
 const bcrypt = require('bcryptjs');
+const Tesseract = require('tesseract.js');
+const crypto = require('crypto');
 
 exports.handler = async (event) => {
   const headers = {
@@ -17,7 +19,7 @@ exports.handler = async (event) => {
     try {
       const { email, password, image_data, nume, numar_carnet, clasa } = JSON.parse(event.body);
 
-      // Validări
+      // Validări de bază
       if (!email || !password || !image_data || !nume || !numar_carnet || !clasa) {
         return {
           statusCode: 400,
@@ -34,19 +36,76 @@ exports.handler = async (event) => {
         };
       }
 
-      // Verifică dacă email-ul sau carnetul există deja
-      const { data: existingUser, error: existingError } = await supabase
+      // Verifică dacă email-ul există deja
+      const { data: existingEmail, error: emailError } = await supabase
         .from('users')
         .select('id')
-        .or(`email.eq.${email},numar_carnet.eq.${numar_carnet}`)
+        .eq('email', email)
         .single();
 
-      if (existingUser) {
+      if (existingEmail) {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'Email-ul sau numărul de carnet există deja în sistem' })
+          body: JSON.stringify({ error: 'Email-ul există deja în sistem' })
         };
+      }
+
+      // Generează hash pentru imagine
+      const imageHash = crypto.createHash('md5').update(image_data).digest('hex');
+
+      // Verifică dacă imaginea a mai fost folosită
+      const { data: existingImage, error: imageError } = await supabase
+        .from('verified_carnets')
+        .select('id, numar_carnet, user_id')
+        .eq('image_hash', imageHash)
+        .single();
+
+      if (existingImage) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Această imagine a carnetului a mai fost folosită' })
+        };
+      }
+
+      // Verifică dacă numărul carnetului a mai fost folosit
+      const { data: existingCarnet, error: carnetError } = await supabase
+        .from('verified_carnets')
+        .select('id, user_id, status')
+        .eq('numar_carnet', numar_carnet)
+        .single();
+
+      if (existingCarnet) {
+        if (existingCarnet.status === 'approved') {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'Numărul carnetului a mai fost folosit' })
+          };
+        } else if (existingCarnet.status === 'pending') {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'Această cerere este deja în procesare' })
+          };
+        }
+      }
+
+      // Procesează imaginea cu OCR pentru carnet UTM
+      const ocrResult = await processCarnetImage(image_data, numar_carnet);
+      
+      let autoVerified = false;
+      let verificationStatus = 'pending';
+      let adminNotes = '';
+
+      if (ocrResult.isValid) {
+        autoVerified = true;
+        verificationStatus = 'approved';
+        adminNotes = 'Verificat automat prin OCR - Carnet UTM valid';
+      } else {
+        verificationStatus = 'pending';
+        adminNotes = `Necesită verificare manuală: ${ocrResult.reason}`;
       }
 
       // Hash parolă
@@ -62,7 +121,7 @@ exports.handler = async (event) => {
             nume: nume, 
             numar_carnet: numar_carnet, 
             clasa: clasa, 
-            is_verified: false 
+            is_verified: autoVerified
           }
         ])
         .select()
@@ -77,29 +136,31 @@ exports.handler = async (event) => {
         };
       }
 
-      // CORECTARE CRITICĂ: Salvează imaginea pentru verificare
-      const { error: verificationError } = await supabase
-        .from('pending_verifications')
+      // Salvează carnetul verificat
+      const { error: carnetSaveError } = await supabase
+        .from('verified_carnets')
         .insert([
-          { 
-            user_id: user.id, 
+          {
+            numar_carnet: numar_carnet,
+            user_id: user.id,
+            image_hash: imageHash,
             image_data: image_data,
-            status: 'pending'
+            status: verificationStatus,
+            auto_verified: autoVerified,
+            verification_data: ocrResult,
+            admin_notes: adminNotes,
+            verified_at: autoVerified ? new Date().toISOString() : null
           }
         ]);
 
-      if (verificationError) {
-        console.error('Eroare la salvarea verificării:', verificationError);
-        // Șterge utilizatorul creat dacă nu putem salva verificarea
-        await supabase
-          .from('users')
-          .delete()
-          .eq('id', user.id);
-          
+      if (carnetSaveError) {
+        console.error('Eroare la salvarea carnetului:', carnetSaveError);
+        // Șterge utilizatorul creat
+        await supabase.from('users').delete().eq('id', user.id);
         return {
           statusCode: 500,
           headers,
-          body: JSON.stringify({ error: 'Eroare la salvarea imaginii' })
+          body: JSON.stringify({ error: 'Eroare la salvarea datelor carnetului' })
         };
       }
 
@@ -108,8 +169,12 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify({
           success: true,
-          message: 'Înregistrare reușită! Așteptați verificarea manuală de către administrator.',
-          userId: user.id.toString()
+          message: autoVerified 
+            ? 'Înregistrare reușită! Contul a fost verificat automat.' 
+            : 'Înregistrare reușită! Așteptați verificarea manuală de către administrator.',
+          userId: user.id.toString(),
+          is_verified: autoVerified,
+          auto_verified: autoVerified
         })
       };
 
@@ -125,3 +190,68 @@ exports.handler = async (event) => {
 
   return { statusCode: 405, headers, body: 'Method Not Allowed' };
 };
+
+async function processCarnetImage(imageData, expectedCarnetNumber) {
+  try {
+    // Elimină prefixul base64
+    const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, "");
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Folosim Tesseract pentru OCR cu limba română
+    const { data: { text } } = await Tesseract.recognize(buffer, 'ron', {
+      logger: m => console.log(m)
+    });
+
+    console.log('Text extras din imagine:', text);
+
+    // Verificări specifice pentru carnetul UTM
+    const checks = {
+      hasMinisterul: /MINISTERUL EDUCAȚIEI/i.test(text),
+      hasUniversitatea: /UNIVERSITATEA TEHNICĂ/i.test(text),
+      hasColegiul: /Colegiul Universității Tehnice a Moldovei/i.test(text),
+      hasCarnetDeElev: /CARNET DE ELEV/i.test(text),
+      hasNr: /Nr\./i.test(text),
+      hasCarnetNumber: new RegExp(expectedCarnetNumber, 'i').test(text),
+      hasValabil: /Valabil până la/i.test(text),
+      hasUTM: /UTM/i.test(text)
+    };
+
+    // Calculăm scorul de validare
+    const totalChecks = Object.keys(checks).length;
+    const passedChecks = Object.values(checks).filter(Boolean).length;
+    const validationScore = (passedChecks / totalChecks) * 100;
+
+    console.log('Scor validare:', validationScore);
+    console.log('Verificări:', checks);
+
+    // Decizie bazată pe scor - threshold mai scăzut pentru a prinde mai multe variații
+    if (validationScore >= 70) {
+      return {
+        isValid: true,
+        score: validationScore,
+        checks: checks,
+        extractedText: text,
+        reason: 'Carnet UTM valid detectat'
+      };
+    } else {
+      const failedChecks = Object.keys(checks).filter(key => !checks[key]);
+      return {
+        isValid: false,
+        score: validationScore,
+        checks: checks,
+        extractedText: text,
+        reason: `Scor insuficient: ${validationScore.toFixed(1)}%. Verificări eșuate: ${failedChecks.join(', ')}`
+      };
+    }
+
+  } catch (error) {
+    console.error('Eroare procesare OCR:', error);
+    return {
+      isValid: false,
+      score: 0,
+      checks: {},
+      extractedText: '',
+      reason: 'Eroare la procesarea imaginii'
+    };
+  }
+}

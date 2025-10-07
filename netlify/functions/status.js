@@ -14,7 +14,6 @@ exports.handler = async function(event, context) {
 
   try {
     if (event.httpMethod === 'GET') {
-      // Verificare token
       const token = event.headers.authorization?.replace('Bearer ', '');
       
       if (!token) {
@@ -48,7 +47,7 @@ exports.handler = async function(event, context) {
         };
       }
 
-      // Pentru utilizatori normali - CORECTAT cu Supabase
+      // Pentru utilizatori normali
       const { data: user, error: userError } = await supabase
         .from('users')
         .select('*')
@@ -67,25 +66,34 @@ exports.handler = async function(event, context) {
         };
       }
 
-      // Verifică dacă utilizatorul este VERIFICAT - CORECTAT
-      if (!user.is_verified) {
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({
-            authenticated: true,
-            has_voted: false,
-            is_verified: false,
-            user_name: user.nume,
-            user_email: user.email,
-            numar_carnet: user.numar_carnet,
-            clasa: user.clasa,
-            error: "Contul nu este verificat. Așteptați aprobarea administratorului."
-          })
-        };
+      // Verifică starea carnetului în noul sistem
+      const { data: carnet, error: carnetError } = await supabase
+        .from('verified_carnets')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      let verification_status = 'not_submitted';
+      let verification_message = '';
+      let is_auto_verified = false;
+
+      if (carnet) {
+        if (carnet.status === 'approved') {
+          verification_status = 'approved';
+          is_auto_verified = carnet.auto_verified;
+          verification_message = carnet.auto_verified 
+            ? 'Cont verificat automat' 
+            : 'Cont verificat de administrator';
+        } else if (carnet.status === 'pending') {
+          verification_status = 'pending';
+          verification_message = carnet.admin_notes || 'În așteptarea verificării';
+        } else if (carnet.status === 'rejected') {
+          verification_status = 'rejected';
+          verification_message = carnet.admin_notes || 'Carnet respins';
+        }
       }
 
-      // Verifică dacă a votat - CORECTAT cu Supabase
+      // Verifică dacă a votat
       const { data: vote, error: voteError } = await supabase
         .from('votes')
         .select('id')
@@ -101,12 +109,20 @@ exports.handler = async function(event, context) {
           authenticated: true,
           has_voted: hasVoted,
           is_verified: user.is_verified,
+          verification_status: verification_status,
+          verification_message: verification_message,
+          is_auto_verified: is_auto_verified,
           is_admin: user.is_admin,
           user_name: user.nume,
           user_email: user.email,
           numar_carnet: user.numar_carnet,
           clasa: user.clasa,
-          user_id: user.id
+          user_id: user.id,
+          message: hasVoted 
+            ? "Ai votat deja. Mulțumim pentru participare!"
+            : user.is_verified 
+              ? "Cont verificat! Acum poți vota."
+              : verification_message
         })
       };
     }

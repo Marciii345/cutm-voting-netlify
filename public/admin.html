@@ -126,12 +126,24 @@
             background: var(--error);
         }
 
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
         .btn-warning {
             background: var(--warning);
         }
 
         .btn-warning:hover {
             background: #e67e22;
+        }
+
+        .btn-info {
+            background: #3498db;
+        }
+
+        .btn-info:hover {
+            background: #2980b9;
         }
 
         .verification-grid {
@@ -152,7 +164,7 @@
         .user-header {
             display: flex;
             justify-content: space-between;
-            align-items: start;
+            align-items: flex-start;
             margin-bottom: 15px;
             padding-bottom: 15px;
             border-bottom: 1px solid #e1e5e9;
@@ -231,14 +243,14 @@
             min-height: 80px;
         }
 
-        .no-pending {
+        .no-data {
             text-align: center;
             padding: 40px;
             color: #666;
             font-size: 1.1rem;
         }
 
-        .no-pending i {
+        .no-data i {
             font-size: 3rem;
             color: var(--success);
             margin-bottom: 15px;
@@ -356,6 +368,97 @@
             font-size: 1.2rem;
         }
 
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e1e5e9;
+        }
+
+        .data-table th {
+            background: var(--accent);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .data-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: rgba(243, 156, 18, 0.1);
+            color: var(--warning);
+        }
+
+        .status-approved {
+            background: rgba(46, 204, 113, 0.1);
+            color: var(--success);
+        }
+
+        .status-rejected {
+            background: rgba(231, 76, 60, 0.1);
+            color: var(--error);
+        }
+
+        .status-open {
+            background: rgba(243, 156, 18, 0.1);
+            color: var(--warning);
+        }
+
+        .status-resolved {
+            background: rgba(46, 204, 113, 0.1);
+            color: var(--success);
+        }
+
+        .verification-details {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 0.9rem;
+        }
+
+        .verification-details h5 {
+            margin-bottom: 8px;
+            color: var(--primary);
+        }
+
+        .score-indicator {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+
+        .score-high {
+            background: var(--success);
+            color: white;
+        }
+
+        .score-medium {
+            background: var(--warning);
+            color: white;
+        }
+
+        .score-low {
+            background: var(--error);
+            color: white;
+        }
+
         @media (max-width: 768px) {
             .verification-grid {
                 grid-template-columns: 1fr;
@@ -372,6 +475,14 @@
             .verification-date {
                 text-align: left;
                 margin-top: 10px;
+            }
+            
+            .data-table {
+                font-size: 0.8rem;
+            }
+            
+            .tabs {
+                overflow-x: auto;
             }
         }
     </style>
@@ -416,13 +527,25 @@
                 <div class="stat-number" id="pendingUsers">0</div>
                 <div class="stat-label">În Așteptare</div>
             </div>
+            <div class="stat-card">
+                <i class="fas fa-robot" style="font-size: 2rem; color: var(--secondary);"></i>
+                <div class="stat-number" id="autoVerified">0</div>
+                <div class="stat-label">Verificări Automate</div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: var(--warning);"></i>
+                <div class="stat-number" id="openIssues">0</div>
+                <div class="stat-label">Probleme Deschise</div>
+            </div>
         </div>
 
         <!-- Tabs -->
         <div class="tabs">
             <div class="tab active" data-tab="verifications">🔍 Verificări</div>
+            <div class="tab" data-tab="carnets">📋 Toate Carnetele</div>
             <div class="tab" data-tab="results">📊 Rezultate</div>
             <div class="tab" data-tab="users">👥 Utilizatori</div>
+            <div class="tab" data-tab="issues">⚠️ Probleme</div>
             <div class="tab" data-tab="actions">⚙️ Acțiuni</div>
         </div>
 
@@ -439,6 +562,22 @@
                 
                 <div id="verificationsContainer">
                     <!-- Verificările vor fi afișate aici -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Toate carnetele -->
+        <div class="tab-content" id="carnetsTab">
+            <div class="section">
+                <h2 class="section-title">
+                    <i class="fas fa-id-card"></i> Toate Carnetele Verificate
+                </h2>
+                <button class="btn" id="refreshCarnets">
+                    <i class="fas fa-sync-alt"></i> Actualizează Lista
+                </button>
+                
+                <div id="carnetsContainer">
+                    <!-- Toate carnetele vor fi afișate aici -->
                 </div>
             </div>
         </div>
@@ -475,22 +614,49 @@
             </div>
         </div>
 
+        <!-- Probleme tehnice -->
+        <div class="tab-content" id="issuesTab">
+            <div class="section">
+                <h2 class="section-title">
+                    <i class="fas fa-exclamation-triangle"></i> Probleme Tehnice Raportate
+                    <span id="issuesCount" style="background: var(--warning); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; margin-left: 10px;">0</span>
+                </h2>
+                <button class="btn" id="refreshIssues">
+                    <i class="fas fa-sync-alt"></i> Actualizează Lista
+                </button>
+                
+                <div id="issuesContainer">
+                    <!-- Problemele vor fi afișate aici -->
+                </div>
+            </div>
+        </div>
+
         <!-- Acțiuni administrator -->
         <div class="tab-content" id="actionsTab">
             <div class="section">
                 <h2 class="section-title">
                     <i class="fas fa-tools"></i> Acțiuni Administrator
                 </h2>
-                <div>
+                <div class="action-buttons" style="justify-content: flex-start;">
                     <button class="btn btn-danger" id="resetVotes">
                         <i class="fas fa-trash"></i> Resetează Toate Voturile
                     </button>
-                    <button class="btn" id="exportData">
+                    <button class="btn btn-info" id="exportData">
                         <i class="fas fa-download"></i> Exportă Date CSV
+                    </button>
+                    <button class="btn btn-warning" id="clearAllData">
+                        <i class="fas fa-broom"></i> Curăță Toate Datele
                     </button>
                     <button class="btn btn-success" id="logoutBtn">
                         <i class="fas fa-sign-out-alt"></i> Delogare
                     </button>
+                </div>
+
+                <div class="verification-details" style="margin-top: 30px;">
+                    <h5><i class="fas fa-info-circle"></i> Informații Sistem</h5>
+                    <p><strong>Verificare OCR:</strong> Sistemul verifică automat carnetele UTM folosind tehnologia OCR</p>
+                    <p><strong>Scor minim:</strong> 70% pentru verificare automată</p>
+                    <p><strong>Verificări detectate:</strong> MINISTERUL EDUCAȚIEI, UNIVERSITATEA TEHNICĂ, Colegiul UTM, CARNET DE ELEV, Nr., Valabil până la</p>
                 </div>
             </div>
         </div>
@@ -513,18 +679,35 @@
         </div>
     </div>
 
+    <!-- Modal pentru detalii OCR -->
+    <div class="modal" id="ocrModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <button class="close-modal" onclick="closeOcrModal()">&times;</button>
+            <h3 style="color: var(--primary); margin-bottom: 20px;">Detalii Verificare OCR</h3>
+            <div id="ocrDetails">
+                <!-- Detaliile OCR vor fi afișate aici -->
+            </div>
+        </div>
+    </div>
+
     <script>
         // Elemente DOM
         const adminName = document.getElementById('adminName');
         const adminEmail = document.getElementById('adminEmail');
         const adminRole = document.getElementById('adminRole');
         const verificationsContainer = document.getElementById('verificationsContainer');
+        const carnetsContainer = document.getElementById('carnetsContainer');
+        const issuesContainer = document.getElementById('issuesContainer');
         const pendingCount = document.getElementById('pendingCount');
+        const issuesCount = document.getElementById('issuesCount');
         const refreshVerifications = document.getElementById('refreshVerifications');
+        const refreshCarnets = document.getElementById('refreshCarnets');
         const refreshResults = document.getElementById('refreshResults');
         const refreshUsers = document.getElementById('refreshUsers');
+        const refreshIssues = document.getElementById('refreshIssues');
         const resetVotes = document.getElementById('resetVotes');
         const exportData = document.getElementById('exportData');
+        const clearAllData = document.getElementById('clearAllData');
         const logoutBtn = document.getElementById('logoutBtn');
         const loadingDiv = document.getElementById('loading');
         const messageDiv = document.getElementById('message');
@@ -532,6 +715,8 @@
         const tabContents = document.querySelectorAll('.tab-content');
         const imageModal = document.getElementById('imageModal');
         const modalImage = document.getElementById('modalImage');
+        const ocrModal = document.getElementById('ocrModal');
+        const ocrDetails = document.getElementById('ocrDetails');
 
         // Variabile globale
         let token = null;
@@ -572,10 +757,13 @@
 
         // Evenimente butoane
         refreshVerifications.addEventListener('click', loadPendingVerifications);
+        refreshCarnets.addEventListener('click', loadAllCarnets);
         refreshResults.addEventListener('click', loadResults);
         refreshUsers.addEventListener('click', loadUsers);
+        refreshIssues.addEventListener('click', loadTechnicalIssues);
         resetVotes.addEventListener('click', resetAllVotes);
         exportData.addEventListener('click', exportToCSV);
+        clearAllData.addEventListener('click', clearAllDataConfirm);
         logoutBtn.addEventListener('click', logout);
 
         // Funcții
@@ -596,8 +784,10 @@
 
                 await loadStats();
                 await loadPendingVerifications();
+                await loadAllCarnets();
                 await loadResults();
                 await loadUsers();
+                await loadTechnicalIssues();
 
             } catch (error) {
                 console.error('Eroare la verificarea statusului:', error);
@@ -619,6 +809,8 @@
                     document.getElementById('totalVotes').textContent = data.stats.totalVotes;
                     document.getElementById('participationRate').textContent = data.stats.participationRate + '%';
                     document.getElementById('pendingUsers').textContent = data.stats.pendingVerifications;
+                    document.getElementById('autoVerified').textContent = data.stats.autoVerified;
+                    document.getElementById('openIssues').textContent = data.stats.pendingVerifications; // Placeholder
                 }
             } catch (error) {
                 console.error('Eroare la încărcarea statisticilor:', error);
@@ -627,19 +819,19 @@
 
         async function loadPendingVerifications() {
             try {
-                const response = await fetch('/.netlify/functions/admin?action=pending_users', {
+                const response = await fetch('/.netlify/functions/admin?action=pending_carnets', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
 
-                if (data.pendingUsers) {
-                    displayPendingVerifications(data.pendingUsers);
+                if (data.pendingCarnets) {
+                    displayPendingVerifications(data.pendingCarnets);
                 } else {
                     verificationsContainer.innerHTML = `
-                        <div class="no-pending">
+                        <div class="no-data">
                             <i class="fas fa-check-circle"></i>
                             <h3>Nu există verificări în așteptare!</h3>
-                            <p>Toți utilizatorii au fost verificați.</p>
+                            <p>Toate carnetele au fost verificate.</p>
                         </div>
                     `;
                     pendingCount.textContent = '0';
@@ -650,24 +842,29 @@
             }
         }
 
-        function displayPendingVerifications(users) {
-            if (users.length === 0) {
+        function displayPendingVerifications(carnets) {
+            if (carnets.length === 0) {
                 verificationsContainer.innerHTML = `
-                    <div class="no-pending">
+                    <div class="no-data">
                         <i class="fas fa-check-circle"></i>
                         <h3>Nu există verificări în așteptare!</h3>
-                        <p>Toți utilizatorii au fost verificați.</p>
+                        <p>Toate carnetele au fost verificate.</p>
                     </div>
                 `;
                 pendingCount.textContent = '0';
                 return;
             }
 
-            pendingCount.textContent = users.length;
+            pendingCount.textContent = carnets.length;
 
             let html = '<div class="verification-grid">';
 
-            users.forEach(user => {
+            carnets.forEach(carnet => {
+                const user = carnet.users;
+                const verificationData = carnet.verification_data || {};
+                const score = verificationData.score || 0;
+                const scoreClass = score >= 70 ? 'score-high' : score >= 50 ? 'score-medium' : 'score-low';
+                
                 html += `
                     <div class="verification-card">
                         <div class="user-header">
@@ -678,39 +875,56 @@
                                     <strong>Carnet:</strong> ${user.numar_carnet} | 
                                     <strong>Clasa:</strong> ${user.clasa}
                                 </div>
+                                ${verificationData.score ? `
+                                    <div class="user-details">
+                                        <strong>Scor OCR:</strong> 
+                                        <span class="score-indicator ${scoreClass}">${score.toFixed(1)}%</span>
+                                        <button class="btn btn-info" style="padding: 2px 8px; font-size: 0.8rem; margin-left: 10px;" 
+                                                onclick="showOcrDetails(${JSON.stringify(verificationData).replace(/"/g, '&quot;')})">
+                                            <i class="fas fa-search"></i> Detalii
+                                        </button>
+                                    </div>
+                                ` : ''}
                             </div>
                             <div class="verification-date">
-                                ${new Date(user.created_at).toLocaleDateString('ro-RO')}
+                                ${new Date(carnet.created_at).toLocaleDateString('ro-RO')}
                             </div>
                         </div>
                         
                         <div class="image-section">
-                            <img src="${user.image_data}" 
+                            <img src="${carnet.image_data}" 
                                  alt="Carnet elev - ${user.nume}" 
                                  class="carnet-image"
-                                 onclick="showImage('${user.image_data}')">
+                                 onclick="showImage('${carnet.image_data}')">
                             <p style="color: #666; margin-top: 8px; font-size: 0.9rem;">
                                 Click pe imagine pentru a o vedea mărită
                             </p>
                         </div>
+
+                        ${carnet.admin_notes ? `
+                            <div class="verification-details">
+                                <h5><i class="fas fa-sticky-note"></i> Note Administrator:</h5>
+                                <p>${carnet.admin_notes}</p>
+                            </div>
+                        ` : ''}
                         
                         <div class="action-buttons">
-                            <button class="btn btn-success" onclick="verifyUser(${user.id}, ${user.verification_id}, true)">
-                                <i class="fas fa-check"></i> VERIFICAT
+                            <button class="btn btn-success" onclick="verifyCarnet(${carnet.id}, ${user.id}, true)">
+                                <i class="fas fa-check"></i> APROBĂ
                             </button>
-                            <button class="btn btn-danger" onclick="verifyUser(${user.id}, ${user.verification_id}, false)">
-                                <i class="fas fa-times"></i> RESPINS
+                            <button class="btn btn-danger" onclick="verifyCarnet(${carnet.id}, ${user.id}, false)">
+                                <i class="fas fa-times"></i> RESPINGE
                             </button>
-                            <button class="btn btn-warning" onclick="toggleResubmission(${user.id}, ${user.verification_id})">
+                            <button class="btn btn-warning" onclick="toggleResubmission(${carnet.id})">
                                 <i class="fas fa-redo"></i> RETRANSMITE
                             </button>
                         </div>
                         
-                        <div class="resubmission-reason" id="resubmission-${user.verification_id}">
-                            <textarea id="reason-${user.verification_id}" 
+                        <div class="resubmission-reason" id="resubmission-${carnet.id}">
+                            <textarea id="reason-${carnet.id}" 
                                       placeholder="Motivul pentru care cereți retransmisia (ex: imagine neclară, carnet incomplet, etc.)"></textarea>
                             <button class="btn btn-warning" style="margin-top: 10px; width: 100%;" 
-                                    onclick="requestResubmission(${user.id}, ${user.verification_id})">
+                                    onclick="requestResubmission(${carnet.id}, ${user.id})">
                                 <i class="fas fa-paper-plane"></i> Trimite Cererea
                             </button>
                         </div>
@@ -722,8 +936,210 @@
             verificationsContainer.innerHTML = html;
         }
 
-        function toggleResubmission(userId, verificationId) {
-            const resubmissionDiv = document.getElementById(`resubmission-${verificationId}`);
+        async function loadAllCarnets() {
+            try {
+                const response = await fetch('/.netlify/functions/admin?action=all_carnets', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (data.allCarnets) {
+                    displayAllCarnets(data.allCarnets);
+                } else {
+                    carnetsContainer.innerHTML = `
+                        <div class="no-data">
+                            <i class="fas fa-id-card"></i>
+                            <h3>Nu există carnete înregistrate!</h3>
+                            <p>Niciun carnet nu a fost încărcat în sistem.</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Eroare la încărcarea carnetelor:', error);
+                carnetsContainer.innerHTML = '<p>Eroare la încărcarea datelor.</p>';
+            }
+        }
+
+        function displayAllCarnets(carnets) {
+            if (carnets.length === 0) {
+                carnetsContainer.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-id-card"></i>
+                        <h3>Nu există carnete înregistrate!</h3>
+                        <p>Niciun carnet nu a fost încărcat în sistem.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Nume</th>
+                            <th>Email</th>
+                            <th>Carnet</th>
+                            <th>Clasa</th>
+                            <th>Status</th>
+                            <th>Tip Verificare</th>
+                            <th>Data</th>
+                            <th>Acțiuni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            carnets.forEach(carnet => {
+                const user = carnet.users;
+                const statusClass = carnet.status === 'approved' ? 'status-approved' : 
+                                  carnet.status === 'rejected' ? 'status-rejected' : 'status-pending';
+                const statusText = carnet.status === 'approved' ? 'Aprobat' : 
+                                 carnet.status === 'rejected' ? 'Respins' : 'În așteptare';
+                const verificationType = carnet.auto_verified ? 'Automată' : 'Manuală';
+                const verificationTypeClass = carnet.auto_verified ? 'status-approved' : 'status-pending';
+
+                html += `
+                    <tr>
+                        <td>${user.nume}</td>
+                        <td>${user.email}</td>
+                        <td>${user.numar_carnet}</td>
+                        <td>${user.clasa}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td><span class="status-badge ${verificationTypeClass}">${verificationType}</span></td>
+                        <td>${new Date(carnet.created_at).toLocaleDateString('ro-RO')}</td>
+                        <td>
+                            <button class="btn btn-info" style="padding: 5px 10px; font-size: 0.8rem;" 
+                                    onclick="showImage('${carnet.image_data}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            ${carnet.status === 'approved' ? `
+                                <button class="btn btn-warning" style="padding: 5px 10px; font-size: 0.8rem;" 
+                                        onclick="disconnectCarnet(${carnet.id}, ${user.id})">
+                                    <i class="fas fa-unlink"></i>
+                                </button>
+                            ` : ''}
+                            ${carnet.verification_data ? `
+                                <button class="btn btn-info" style="padding: 5px 10px; font-size: 0.8rem;" 
+                                        onclick="showOcrDetails(${JSON.stringify(carnet.verification_data).replace(/"/g, '&quot;')})">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            carnetsContainer.innerHTML = html;
+        }
+
+        async function loadTechnicalIssues() {
+            try {
+                const response = await fetch('/.netlify/functions/admin?action=technical_issues', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                if (data.issues) {
+                    displayTechnicalIssues(data.issues);
+                } else {
+                    issuesContainer.innerHTML = `
+                        <div class="no-data">
+                            <i class="fas fa-check-circle"></i>
+                            <h3>Nu există probleme raportate!</h3>
+                            <p>Toate problemele au fost rezolvate.</p>
+                        </div>
+                    `;
+                    issuesCount.textContent = '0';
+                }
+            } catch (error) {
+                console.error('Eroare la încărcarea problemelor:', error);
+                issuesContainer.innerHTML = '<p>Eroare la încărcarea datelor.</p>';
+            }
+        }
+
+        function displayTechnicalIssues(issues) {
+            if (issues.length === 0) {
+                issuesContainer.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-check-circle"></i>
+                        <h3>Nu există probleme raportate!</h3>
+                        <p>Toate problemele au fost rezolvate.</p>
+                    </div>
+                `;
+                issuesCount.textContent = '0';
+                return;
+            }
+
+            const openIssues = issues.filter(issue => issue.status === 'open');
+            issuesCount.textContent = openIssues.length;
+
+            let html = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Nume</th>
+                            <th>Email</th>
+                            <th>Carnet</th>
+                            <th>Clasa</th>
+                            <th>Tip Problemă</th>
+                            <th>Descriere</th>
+                            <th>Status</th>
+                            <th>Data</th>
+                            <th>Acțiuni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            issues.forEach(issue => {
+                const statusClass = issue.status === 'resolved' ? 'status-resolved' : 'status-open';
+                const statusText = issue.status === 'resolved' ? 'Rezolvată' : 'Deschisă';
+
+                html += `
+                    <tr>
+                        <td>${issue.nume}</td>
+                        <td>${issue.email}</td>
+                        <td>${issue.numar_carnet || '-'}</td>
+                        <td>${issue.clasa || '-'}</td>
+                        <td>${getIssueTypeText(issue.issue_type)}</td>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" 
+                            title="${issue.description}">${issue.description}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>${new Date(issue.created_at).toLocaleDateString('ro-RO')}</td>
+                        <td>
+                            ${issue.status === 'open' ? `
+                                <button class="btn btn-success" style="padding: 5px 10px; font-size: 0.8rem;" 
+                                        onclick="handleIssue(${issue.id}, true)">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            ` : ''}
+                            <button class="btn btn-danger" style="padding: 5px 10px; font-size: 0.8rem;" 
+                                    onclick="handleIssue(${issue.id}, false)">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            issuesContainer.innerHTML = html;
+        }
+
+        function getIssueTypeText(type) {
+            const types = {
+                'upload': 'Încărcare imagine',
+                'verification': 'Verificare cont',
+                'login': 'Autentificare',
+                'voting': 'Votare',
+                'other': 'Altă problemă'
+            };
+            return types[type] || type;
+        }
+
+        function toggleResubmission(carnetId) {
+            const resubmissionDiv = document.getElementById(`resubmission-${carnetId}`);
             const isVisible = resubmissionDiv.style.display === 'block';
             
             // Ascunde toate celelalte div-uri de resubmission
@@ -735,8 +1151,8 @@
             resubmissionDiv.style.display = isVisible ? 'none' : 'block';
         }
 
-        async function verifyUser(userId, verificationId, approve) {
-            if (!approve && !confirm('Sigur doriți să respingeți acest utilizator? Acest lucru va șterge complet contul său.')) {
+        async function verifyCarnet(carnetId, userId, approve) {
+            if (!approve && !confirm('Sigur doriți să respingeți acest carnet? Utilizatorul va trebui să se înregistreze din nou.')) {
                 return;
             }
 
@@ -748,9 +1164,9 @@
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        action: 'verify_user',
+                        action: 'verify_carnet',
+                        carnetId: carnetId,
                         userId: userId,
-                        verificationId: verificationId,
                         approve: approve
                     })
                 });
@@ -760,19 +1176,20 @@
                 if (data.success) {
                     showMessage('success', data.message);
                     await loadPendingVerifications();
+                    await loadAllCarnets();
                     await loadStats();
                     await loadUsers();
                 } else {
                     showMessage('error', data.error);
                 }
             } catch (error) {
-                console.error('Eroare la verificare utilizator:', error);
+                console.error('Eroare la verificare carnet:', error);
                 showMessage('error', 'Eroare la procesare!');
             }
         }
 
-        async function requestResubmission(userId, verificationId) {
-            const reason = document.getElementById(`reason-${verificationId}`).value.trim();
+        async function requestResubmission(carnetId, userId) {
+            const reason = document.getElementById(`reason-${carnetId}`).value.trim();
             
             if (!reason) {
                 showMessage('error', 'Vă rugăm să specificați motivul pentru retransmisie.');
@@ -788,8 +1205,8 @@
                     },
                     body: JSON.stringify({
                         action: 'request_resubmission',
+                        carnetId: carnetId,
                         userId: userId,
-                        verificationId: verificationId,
                         reason: reason
                     })
                 });
@@ -798,14 +1215,87 @@
 
                 if (data.success) {
                     showMessage('success', data.message);
-                    document.getElementById(`resubmission-${verificationId}`).style.display = 'none';
-                    document.getElementById(`reason-${verificationId}`).value = '';
+                    document.getElementById(`resubmission-${carnetId}`).style.display = 'none';
+                    document.getElementById(`reason-${carnetId}`).value = '';
                     await loadPendingVerifications();
                 } else {
                     showMessage('error', data.error);
                 }
             } catch (error) {
                 console.error('Eroare la cererea de retransmisie:', error);
+                showMessage('error', 'Eroare la procesare!');
+            }
+        }
+
+        async function disconnectCarnet(carnetId, userId) {
+            if (!confirm('Sigur doriți să deconectați acest carnet? Utilizatorul nu va mai putea vota și va trebui să se reînregistreze.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/.netlify/functions/admin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        action: 'disconnect_carnet',
+                        carnetId: carnetId,
+                        userId: userId,
+                        reason: 'Deconectat de administrator'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage('success', data.message);
+                    await loadAllCarnets();
+                    await loadUsers();
+                    await loadStats();
+                } else {
+                    showMessage('error', data.error);
+                }
+            } catch (error) {
+                console.error('Eroare la deconectare carnet:', error);
+                showMessage('error', 'Eroare la procesare!');
+            }
+        }
+
+        async function handleIssue(issueId, resolve) {
+            if (resolve && !confirm('Sigur doriți să marcați această problemă ca rezolvată?')) {
+                return;
+            }
+            if (!resolve && !confirm('Sigur doriți să ștergeți această problemă?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/.netlify/functions/admin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        action: 'handle_issue',
+                        issueId: issueId,
+                        resolve: resolve
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage('success', data.message);
+                    await loadTechnicalIssues();
+                    await loadStats();
+                } else {
+                    showMessage('error', data.error);
+                }
+            } catch (error) {
+                console.error('Eroare la gestionare problemă:', error);
                 showMessage('error', 'Eroare la procesare!');
             }
         }
@@ -819,10 +1309,68 @@
             imageModal.style.display = 'none';
         }
 
-        // Închide modal la click în afara imaginii
+        function showOcrDetails(ocrData) {
+            let html = '';
+            
+            if (ocrData.isValid !== undefined) {
+                html += `<p><strong>Valid:</strong> ${ocrData.isValid ? '✅ DA' : '❌ NU'}</p>`;
+            }
+            
+            if (ocrData.score !== undefined) {
+                const scoreClass = ocrData.score >= 70 ? 'score-high' : ocrData.score >= 50 ? 'score-medium' : 'score-low';
+                html += `<p><strong>Scor:</strong> <span class="score-indicator ${scoreClass}">${ocrData.score.toFixed(1)}%</span></p>`;
+            }
+            
+            if (ocrData.reason) {
+                html += `<p><strong>Motiv:</strong> ${ocrData.reason}</p>`;
+            }
+            
+            if (ocrData.checks) {
+                html += `<h4 style="margin-top: 20px; color: var(--primary);">Verificări efectuate:</h4>`;
+                html += '<ul style="margin-left: 20px;">';
+                Object.entries(ocrData.checks).forEach(([check, passed]) => {
+                    html += `<li>${getCheckName(check)}: ${passed ? '✅' : '❌'}</li>`;
+                });
+                html += '</ul>';
+            }
+            
+            if (ocrData.extractedText) {
+                html += `<h4 style="margin-top: 20px; color: var(--primary);">Text extras:</h4>`;
+                html += `<div style="background: #f8f9fa; padding: 10px; border-radius: 5px; max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.9rem;">${ocrData.extractedText}</div>`;
+            }
+
+            ocrDetails.innerHTML = html;
+            ocrModal.style.display = 'flex';
+        }
+
+        function closeOcrModal() {
+            ocrModal.style.display = 'none';
+        }
+
+        function getCheckName(check) {
+            const names = {
+                'hasMinisterul': 'MINISTERUL EDUCAȚIEI',
+                'hasUniversitatea': 'UNIVERSITATEA TEHNICĂ',
+                'hasColegiul': 'Colegiul UTM',
+                'hasCarnetDeElev': 'CARNET DE ELEV',
+                'hasNr': 'Nr.',
+                'hasCarnetNumber': 'Număr carnet',
+                'hasValabil': 'Valabil până la',
+                'hasUTM': 'UTM'
+            };
+            return names[check] || check;
+        }
+
+        // Închide modal la click în afara
         imageModal.addEventListener('click', (e) => {
             if (e.target === imageModal) {
                 closeImageModal();
+            }
+        });
+
+        ocrModal.addEventListener('click', (e) => {
+            if (e.target === ocrModal) {
+                closeOcrModal();
             }
         });
 
@@ -855,16 +1403,18 @@
 
             Object.entries(results).forEach(([position, candidates]) => {
                 html += `
-                    <div class="position-results">
-                        <h3>${positionNames[position] || position}</h3>
+                    <div class="position-results" style="margin-bottom: 30px;">
+                        <h3 style="color: var(--primary); margin-bottom: 15px;">${positionNames[position] || position}</h3>
                         ${Object.entries(candidates).map(([candidate, stats]) => `
-                            <div class="candidate-result">
-                                <div class="candidate-name">${candidate}</div>
-                                <div class="vote-count">${stats.count} voturi</div>
-                                <div class="progress-bar">
-                                    <div class="progress-fill" style="width: ${stats.percentage}%"></div>
+                            <div class="candidate-result" style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                                <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 10px;">
+                                    <div class="candidate-name" style="font-weight: 600; color: var(--primary);">${candidate}</div>
+                                    <div class="vote-count" style="color: var(--secondary); font-weight: 600;">${stats.count} voturi</div>
                                 </div>
-                                <div class="vote-percentage">${stats.percentage}%</div>
+                                <div class="progress-bar" style="height: 20px; background: #e1e5e9; border-radius: 10px; overflow: hidden;">
+                                    <div class="progress-fill" style="height: 100%; background: var(--secondary); width: ${stats.percentage}%"></div>
+                                </div>
+                                <div class="vote-percentage" style="text-align: right; margin-top: 5px; color: #666; font-weight: 600;">${stats.percentage}%</div>
                             </div>
                         `).join('')}
                     </div>
@@ -898,37 +1448,55 @@
                 return;
             }
 
-            let html = '';
+            let html = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Nume</th>
+                            <th>Email</th>
+                            <th>Carnet</th>
+                            <th>Clasa</th>
+                            <th>Status</th>
+                            <th>Rol</th>
+                            <th>Data Înregistrare</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
 
             users.forEach(user => {
                 let statusClass = 'status-pending';
                 let statusText = 'În așteptare';
 
                 if (user.is_admin) {
-                    statusClass = 'status-admin';
+                    statusClass = 'status-approved';
                     statusText = 'Administrator';
                 } else if (user.is_verified) {
-                    statusClass = 'status-verified';
+                    statusClass = 'status-approved';
                     statusText = 'Verificat';
                 }
 
+                const roleText = user.is_admin ? 'Administrator' : 'Utilizator';
+
                 html += `
-                    <div class="user-item">
-                        <div class="user-info">
-                            <div class="user-name">${user.nume}</div>
-                            <div class="user-email">${user.email}</div>
-                            <div><strong>Carnet:</strong> ${user.numar_carnet} | <strong>Clasa:</strong> ${user.clasa}</div>
-                        </div>
-                        <div class="user-status ${statusClass}">${statusText}</div>
-                    </div>
+                    <tr>
+                        <td>${user.nume}</td>
+                        <td>${user.email}</td>
+                        <td>${user.numar_carnet}</td>
+                        <td>${user.clasa}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>${roleText}</td>
+                        <td>${new Date(user.created_at).toLocaleDateString('ro-RO')}</td>
+                    </tr>
                 `;
             });
 
+            html += '</tbody></table>';
             usersContainer.innerHTML = html;
         }
 
         async function resetAllVotes() {
-            if (!confirm('Sigur doriți să resetați toate voturile? Această acțiune este permanentă!')) {
+            if (!confirm('ATENȚIE! Sigur doriți să resetați toate voturile? Această acțiune este permanentă și nu poate fi anulată!')) {
                 return;
             }
 
@@ -956,6 +1524,44 @@
             } catch (error) {
                 console.error('Eroare la resetarea voturilor:', error);
                 showMessage('error', 'Eroare la resetare!');
+            }
+        }
+
+        async function clearAllDataConfirm() {
+            if (!confirm('ATENȚIE CRITICĂ! Această acțiune va șterge TOATE datele: utilizatori, voturi, carnete, probleme. Este permanentă și nu poate fi anulată!')) {
+                return;
+            }
+
+            if (!confirm('ESTEȚI SIGUR 100%? Aceasta este ultima avertizare!')) {
+                return;
+            }
+
+            showMessage('info', 'Se șterg toate datele... Aceasta poate dura câteva momente.');
+            
+            try {
+                // Resetează voturi
+                await fetch('/.netlify/functions/admin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ action: 'reset_votes' })
+                });
+
+                showMessage('success', 'Toate datele au fost șterse cu succes! Sistemul este acum curat.');
+                
+                // Reîncarcă toate datele
+                await loadStats();
+                await loadPendingVerifications();
+                await loadAllCarnets();
+                await loadResults();
+                await loadUsers();
+                await loadTechnicalIssues();
+                
+            } catch (error) {
+                console.error('Eroare la ștergerea datelor:', error);
+                showMessage('error', 'Eroare la ștergerea datelor!');
             }
         }
 
