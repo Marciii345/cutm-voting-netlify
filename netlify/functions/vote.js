@@ -1,4 +1,4 @@
-// netlify/functions/vote.js
+// netlify/functions/vote.js - SOLUȚIE FIX 403
 const supabase = require('./database');
 
 exports.handler = async (event) => {
@@ -13,11 +13,11 @@ exports.handler = async (event) => {
   }
 
   try {
-    // GET - Rezultate (accesibil fără autentificare pentru admin)
+    // GET - Rezultate (accesibil fără autentificare)
     if (event.httpMethod === 'GET') {
       const { data: results, error } = await supabase
         .from('votes')
-        .select('president, vice_president, culture_minister, administration_minister, social_media_minister');
+        .select('president');
 
       if (error) {
         console.error('Eroare la preluarea voturilor:', error);
@@ -30,20 +30,14 @@ exports.handler = async (event) => {
 
       // Calculează rezultatele
       const voteCounts = {
-        president: {}, 
-        vice_president: {}, 
-        culture_minister: {},
-        administration_minister: {}, 
-        social_media_minister: {}
+        president: {}
       };
 
       results.forEach(vote => {
-        Object.keys(voteCounts).forEach(position => {
-          const candidate = vote[position];
-          if (candidate) {
-            voteCounts[position][candidate] = (voteCounts[position][candidate] || 0) + 1;
-          }
-        });
+        const candidate = vote.president;
+        if (candidate) {
+          voteCounts.president[candidate] = (voteCounts.president[candidate] || 0) + 1;
+        }
       });
 
       // Calculează procentele
@@ -66,9 +60,12 @@ exports.handler = async (event) => {
 
     // POST - Înregistrare vot (necesită autentificare)
     if (event.httpMethod === 'POST') {
+      console.log('🗳️ Început proces vot...');
+      
       // Verificare token
       const token = event.headers.authorization?.replace('Bearer ', '');
       if (!token) {
+        console.log('❌ Token lipsă');
         return {
           statusCode: 401,
           headers,
@@ -77,11 +74,31 @@ exports.handler = async (event) => {
       }
 
       const { verify } = require('jsonwebtoken');
-      const user = verify(token, process.env.JWT_SECRET);
+      let user;
+      try {
+        user = verify(token, process.env.JWT_SECRET);
+        console.log('✅ Token valid pentru user:', user.id);
+      } catch (tokenError) {
+        console.log('❌ Token invalid:', tokenError.message);
+        return {
+          statusCode: 401,
+          headers,
+          body: JSON.stringify({ error: 'Token invalid' })
+        };
+      }
 
-      const { president, vice_president, culture_minister, administration_minister, social_media_minister } = 
-        JSON.parse(event.body);
+      const { president } = JSON.parse(event.body);
 
+      if (!president) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Trebuie să selectați un candidat pentru președinte' })
+        };
+      }
+
+      console.log('🔍 Verificare dacă a votat deja...');
+      
       // Verifică dacă a votat deja
       const { data: existingVote, error: existingError } = await supabase
         .from('votes')
@@ -90,6 +107,7 @@ exports.handler = async (event) => {
         .single();
 
       if (existingVote) {
+        console.log('❌ Utilizatorul a votat deja');
         return {
           statusCode: 400,
           headers,
@@ -97,20 +115,46 @@ exports.handler = async (event) => {
         };
       }
 
-      // Verifică dacă utilizatorul este verificat
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('is_verified')
-        .eq('id', user.id)
+      console.log('🔍 Verificare stare carnet...');
+      
+      // VERIFICARE ÎMBUNĂTĂȚITĂ: Verifică dacă utilizatorul are carnet aprobat
+      const { data: carnet, error: carnetError } = await supabase
+        .from('verified_carnets')
+        .select('status, auto_verified')
+        .eq('user_id', user.id)
         .single();
 
-      if (userError || !userData || !userData.is_verified) {
+      if (carnetError) {
+        console.error('Eroare la verificarea carnetului:', carnetError);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: 'Eroare la verificarea stării carnetului' })
+        };
+      }
+
+      if (!carnet) {
+        console.log('❌ Utilizatorul nu are carnet înregistrat');
         return {
           statusCode: 403,
           headers,
-          body: JSON.stringify({ error: 'Contul nu este verificat. Așteptați aprobarea administratorului.' })
+          body: JSON.stringify({ error: 'Nu aveți un carnet verificat. Înregistrați-vă mai întâi.' })
         };
       }
+
+      if (carnet.status !== 'approved') {
+        console.log('❌ Carnetul nu este aprobat. Status:', carnet.status);
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ 
+            error: 'Contul nu este verificat. Nu puteți vota.',
+            details: `Stare carnet: ${carnet.status}`
+          })
+        };
+      }
+
+      console.log('✅ Utilizator verificat - înregistrare vot...');
 
       // Înregistrează votul
       const { error: voteError } = await supabase
@@ -118,11 +162,7 @@ exports.handler = async (event) => {
         .insert([
           {
             user_id: user.id,
-            president,
-            vice_president,
-            culture_minister,
-            administration_minister,
-            social_media_minister
+            president: president
           }
         ]);
 
@@ -134,6 +174,8 @@ exports.handler = async (event) => {
           body: JSON.stringify({ error: 'Eroare la înregistrarea votului' })
         };
       }
+
+      console.log('✅ Vot înregistrat cu succes pentru user:', user.id);
 
       return {
         statusCode: 200,
@@ -148,7 +190,7 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers, body: 'Method Not Allowed' };
 
   } catch (error) {
-    console.error('Eroare vot:', error);
+    console.error('💥 Eroare vot:', error);
     
     if (error.name === 'JsonWebTokenError') {
       return {
@@ -161,7 +203,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Eroare internă server' })
+      body: JSON.stringify({ error: 'Eroare internă server: ' + error.message })
     };
   }
 };

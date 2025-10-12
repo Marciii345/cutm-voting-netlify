@@ -1,4 +1,4 @@
-// netlify/functions/admin.js
+// netlify/functions/admin.js - ACTUALIZAT
 const supabase = require('./database');
 
 exports.handler = async (event) => {
@@ -56,6 +56,11 @@ exports.handler = async (event) => {
           .eq('auto_verified', true)
           .eq('status', 'approved');
 
+        const { count: openIssues } = await supabase
+          .from('technical_issues')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'open');
+
         const participationRate = verifiedUsers > 0 
           ? ((totalVotes / verifiedUsers) * 100).toFixed(1) 
           : 0;
@@ -70,13 +75,14 @@ exports.handler = async (event) => {
               totalVotes,
               pendingVerifications,
               autoVerified,
+              openIssues,
               participationRate
             }
           })
         };
       }
 
-      // Carnete în așteptare - combinat cu pending_verifications pentru compatibilitate
+      // Carnete în așteptare (NOU)
       if (action === 'pending_carnets') {
         const { data: pendingCarnets, error } = await supabase
           .from('verified_carnets')
@@ -149,7 +155,7 @@ exports.handler = async (event) => {
         };
       }
 
-      // Utilizatori pentru compatibilitate
+      // Utilizatori
       if (action === 'all_users') {
         const { data: users, error } = await supabase
           .from('users')
@@ -170,84 +176,119 @@ exports.handler = async (event) => {
 
     // POST - Acțiuni admin
     if (event.httpMethod === 'POST') {
-      const { action, carnetId, userId, approve, reason, issueId, resolve } = JSON.parse(event.body);
+      const body = JSON.parse(event.body);
+      const { action, carnetId, userId, issueId, resolve, approve, reason } = body;
 
-      // Verificare carnet
+      // Verificare manuală carnet (NOU)
       if (action === 'verify_carnet') {
-        if (approve) {
-          // Aprobă carnetul
-          const { error: carnetError } = await supabase
-            .from('verified_carnets')
-            .update({ 
-              status: 'approved',
-              verified_at: new Date().toISOString(),
-              admin_notes: reason || 'Aprobat manual de administrator'
-            })
-            .eq('id', carnetId);
+        const { error: carnetError } = await supabase
+          .from('verified_carnets')
+          .update({ 
+            status: approve ? 'approved' : 'rejected',
+            verified_at: approve ? new Date().toISOString() : null,
+            admin_notes: reason || (approve ? 'Aprobat manual de administrator' : 'Respins manual de administrator'),
+            auto_verified: false
+          })
+          .eq('id', carnetId);
 
-          if (carnetError) {
-            return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la aprobare' }) };
-          }
-
-          // Actualizează utilizatorul ca verificat
-          const { error: userError } = await supabase
-            .from('users')
-            .update({ is_verified: true })
-            .eq('id', userId);
-
-          if (userError) {
-            return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la actualizare utilizator' }) };
-          }
-
-          // Actualizează și pending_verifications pentru compatibilitate
-          await supabase
-            .from('pending_verifications')
-            .update({ status: 'approved' })
-            .eq('user_id', userId);
-
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({ 
-              success: true, 
-              message: 'Carnet aprobat cu succes!' 
-            })
-          };
-        } else {
-          // Respinge carnetul
-          const { error: carnetError } = await supabase
-            .from('verified_carnets')
-            .update({ 
-              status: 'rejected',
-              admin_notes: reason || 'Respins de administrator'
-            })
-            .eq('id', carnetId);
-
-          if (carnetError) {
-            return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la respingere' }) };
-          }
-
-          // Respinge și în pending_verifications
-          await supabase
-            .from('pending_verifications')
-            .update({ status: 'rejected' })
-            .eq('user_id', userId);
-
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({ 
-              success: true, 
-              message: 'Carnet respins!' 
-            })
-          };
+        if (carnetError) {
+          return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la verificare carnet' }) };
         }
+
+        // Actualizează utilizatorul
+        const { error: userError } = await supabase
+          .from('users')
+          .update({ is_verified: approve })
+          .eq('id', userId);
+
+        if (userError) {
+          return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la actualizare utilizator' }) };
+        }
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ 
+            success: true, 
+            message: approve ? 'Carnet aprobat cu succes!' : 'Carnet respins!' 
+          })
+        };
+      }
+
+      // Cerere retransmisie (NOU)
+      if (action === 'request_resubmission') {
+        const { error: carnetError } = await supabase
+          .from('verified_carnets')
+          .update({ 
+            status: 'rejected',
+            admin_notes: `Cerere retransmisie: ${reason}`
+          })
+          .eq('id', carnetId);
+
+        if (carnetError) {
+          return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la cerere retransmisie' }) };
+        }
+
+        const { error: userError } = await supabase
+          .from('users')
+          .update({ is_verified: false })
+          .eq('id', userId);
+
+        if (userError) {
+          return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la actualizare utilizator' }) };
+        }
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ 
+            success: true, 
+            message: 'Cererea de retransmisie a fost trimisă!' 
+          })
+        };
+      }
+
+      // Deconectare carnet
+      if (action === 'disconnect_carnet') {
+        const { error: carnetError } = await supabase
+          .from('verified_carnets')
+          .update({ 
+            status: 'rejected',
+            admin_notes: 'Deconectat de administrator'
+          })
+          .eq('id', carnetId);
+
+        if (carnetError) {
+          return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la deconectare' }) };
+        }
+
+        const { error: userError } = await supabase
+          .from('users')
+          .update({ is_verified: false })
+          .eq('id', userId);
+
+        if (userError) {
+          return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la dezactivare utilizator' }) };
+        }
+
+        await supabase
+          .from('votes')
+          .delete()
+          .eq('user_id', userId);
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ 
+            success: true, 
+            message: 'Carnet deconectat și utilizator dezactivat!' 
+          })
+        };
       }
 
       // Gestionare probleme tehnice
       if (action === 'handle_issue') {
         if (resolve) {
-          // Rezolvă problema
           const { error } = await supabase
             .from('technical_issues')
             .update({ 
@@ -269,7 +310,6 @@ exports.handler = async (event) => {
             })
           };
         } else {
-          // Șterge problema
           const { error } = await supabase
             .from('technical_issues')
             .delete()
@@ -288,47 +328,6 @@ exports.handler = async (event) => {
             })
           };
         }
-      }
-
-      // Deconectare carnet (respingere post-factum)
-      if (action === 'disconnect_carnet') {
-        // Respinge carnetul
-        const { error: carnetError } = await supabase
-          .from('verified_carnets')
-          .update({ 
-            status: 'rejected',
-            admin_notes: reason || 'Deconectat de administrator'
-          })
-          .eq('id', carnetId);
-
-        if (carnetError) {
-          return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la deconectare' }) };
-        }
-
-        // Dezactivează utilizatorul
-        const { error: userError } = await supabase
-          .from('users')
-          .update({ is_verified: false })
-          .eq('id', userId);
-
-        if (userError) {
-          return { statusCode: 500, headers, body: JSON.stringify({ error: 'Eroare la dezactivare utilizator' }) };
-        }
-
-        // Dezactivează și în pending_verifications
-        await supabase
-          .from('pending_verifications')
-          .update({ status: 'rejected' })
-          .eq('user_id', userId);
-
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ 
-            success: true, 
-            message: 'Carnet deconectat și utilizator dezactivat!' 
-          })
-        };
       }
 
       // Reset voturi
@@ -358,10 +357,6 @@ exports.handler = async (event) => {
           .from('votes')
           .select(`
             president,
-            vice_president,
-            culture_minister,
-            administration_minister,
-            social_media_minister,
             created_at,
             users (
               email,
@@ -377,12 +372,11 @@ exports.handler = async (event) => {
         }
 
         const formattedVotes = votes.map(vote => ({
-          ...vote.users,
+          nume: vote.users.nume,
+          email: vote.users.email,
+          numar_carnet: vote.users.numar_carnet,
+          clasa: vote.users.clasa,
           president: vote.president,
-          vice_president: vote.vice_president,
-          culture_minister: vote.culture_minister,
-          administration_minister: vote.administration_minister,
-          social_media_minister: vote.social_media_minister,
           created_at: vote.created_at
         }));
 

@@ -1,7 +1,5 @@
 // netlify/functions/auth.js
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const supabase = require('./database');
 
 exports.handler = async (event) => {
   const headers = {
@@ -26,65 +24,13 @@ exports.handler = async (event) => {
         };
       }
 
-      // Verifică dacă este admin
-      if (email === process.env.ADMIN_EMAIL) {
-        if (password === process.env.ADMIN_PASSWORD) {
-          const token = jwt.sign(
-            { 
-              email: email, 
-              isAdmin: true,
-              userId: 'admin'
-            }, 
-            process.env.JWT_SECRET, 
-            { expiresIn: '24h' }
-          );
-
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({
-              success: true,
-              token,
-              user: { 
-                email: email, 
-                isAdmin: true, 
-                nume: "Administrator Sistem",
-                role: "super_admin"
-              }
-            })
-          };
-        } else {
-          return {
-            statusCode: 401,
-            headers,
-            body: JSON.stringify({ error: 'Parolă incorectă pentru administrator' })
-          };
-        }
-      }
-
-      // Verifică utilizator normal
-      const { data: user, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .eq('is_verified', true)
-        .single();
-
-      if (error) {
-        console.error('Eroare la căutarea utilizatorului:', error);
-        return {
-          statusCode: 401,
-          headers,
-          body: JSON.stringify({ error: 'Email sau parolă incorectă' })
-        };
-      }
-
-      if (user && await bcrypt.compare(password, user.password_hash)) {
+      // Verifică doar pentru administrator
+      if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
         const token = jwt.sign(
           { 
-            id: user.id, 
-            email: user.email, 
-            isAdmin: user.is_admin 
+            email: email, 
+            isAdmin: true,
+            userId: 'admin'
           }, 
           process.env.JWT_SECRET, 
           { expiresIn: '24h' }
@@ -96,23 +42,21 @@ exports.handler = async (event) => {
           body: JSON.stringify({
             success: true,
             token,
-            user: {
-              id: user.id,
-              email: user.email,
-              nume: user.nume,
-              numar_carnet: user.numar_carnet,
-              clasa: user.clasa,
-              isAdmin: user.is_admin
+            user: { 
+              email: email, 
+              isAdmin: true, 
+              nume: "Administrator Sistem",
+              role: "super_admin"
             }
           })
         };
+      } else {
+        return {
+          statusCode: 401,
+          headers,
+          body: JSON.stringify({ error: 'Date de autentificare incorecte pentru administrator' })
+        };
       }
-
-      return {
-        statusCode: 401,
-        headers,
-        body: JSON.stringify({ error: 'Email sau parolă incorectă' })
-      };
 
     } catch (error) {
       console.error('Eroare autentificare:', error);

@@ -66,7 +66,7 @@ exports.handler = async function(event, context) {
         };
       }
 
-      // Verifică starea carnetului în noul sistem
+      // Verifică starea carnetului
       const { data: carnet, error: carnetError } = await supabase
         .from('verified_carnets')
         .select('*')
@@ -96,35 +96,36 @@ exports.handler = async function(event, context) {
       // Verifică dacă a votat
       const { data: vote, error: voteError } = await supabase
         .from('votes')
-        .select('id')
+        .select('id, president')
         .eq('user_id', user.id)
         .single();
 
       const hasVoted = !!vote;
 
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          authenticated: true,
-          has_voted: hasVoted,
-          is_verified: user.is_verified,
-          verification_status: verification_status,
-          verification_message: verification_message,
-          is_auto_verified: is_auto_verified,
-          is_admin: user.is_admin,
-          user_name: user.nume,
-          user_email: user.email,
-          numar_carnet: user.numar_carnet,
-          clasa: user.clasa,
-          user_id: user.id,
-          message: hasVoted 
-            ? "Ai votat deja. Mulțumim pentru participare!"
-            : user.is_verified 
-              ? "Cont verificat! Acum poți vota."
-              : verification_message
-        })
-      };
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        authenticated: true,
+        has_voted: hasVoted,
+        voted_candidate: vote ? vote.president : null,
+        is_verified: carnet?.status === 'approved', // <<< IMPORTANT: consistent cu vote.js
+        verification_status: verification_status,
+        verification_message: verification_message,
+        is_auto_verified: is_auto_verified,
+        is_admin: user.is_admin,
+        user_name: user.nume,
+        user_email: user.email,
+        numar_carnet: user.numar_carnet,
+        clasa: user.clasa,
+        user_id: user.id,
+        message: hasVoted 
+          ? "Ai votat deja. Mulțumim pentru participare!"
+          : carnet?.status === 'approved'
+            ? "Cont verificat! Acum poți vota."
+            : verification_message
+      })
+    };
     }
 
     return { 
