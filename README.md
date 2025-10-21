@@ -1,3 +1,4 @@
-<img width="551" height="606" alt="image" src="https://github.com/user-attachments/assets/121c9ec8-eb3c-4ac6-91fc-24bd63eeda20" />
+Sistemul degetal de vot a Consiliului elevilor colegiului universitatii tehnice al moldoveii 
 
-PAGINA DE VOT PRIVAT PENTRU ALEGERILE 2025 A PRESEDINTELUI 
+Elaborat spre posibilitate de-a vota online prin prezenta carnetului de elev al elevilor (CUTM)
+<img width="916" height="651" alt="image" src="https://github.com/user-attachments/assets/8eee24bb-f15f-45d5-93c9-94decd5e5ef1" />
